@@ -1,0 +1,151 @@
+:root {
+  color: CanvasText;
+  background: Canvas;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+}
+
+a {
+  color: LinkText;
+  text-underline-offset: 0.2em;
+}
+
+button,
+a {
+  min-height: 2.75rem;
+}
+
+button {
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  color: inherit;
+  background: Canvas;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+}
+
+button[aria-pressed='true'] {
+  font-weight: 700;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+.site-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -5rem;
+  padding: 0.75rem;
+  background: Canvas;
+  z-index: 1;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+.site-header,
+.site-footer {
+  padding: 1rem;
+  border-block-end: 1px solid currentColor;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.site-name {
+  color: inherit;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.site-header nav {
+  margin-inline-end: auto;
+}
+
+.site-header nav a {
+  display: inline-flex;
+  align-items: center;
+}
+
+.language-switcher {
+  display: flex;
+  gap: 0.5rem;
+}
+
+main {
+  width: 100%;
+}
+
+.page {
+  width: min(100% - 2rem, 70rem);
+  margin-inline: auto;
+  padding-block: clamp(3rem, 12vw, 8rem);
+}
+
+.page h1 {
+  max-width: 18ch;
+  margin-block: 0.25rem 1rem;
+  font-size: clamp(2.25rem, 10vw, 5rem);
+  line-height: 1;
+}
+
+.page p {
+  max-width: 60ch;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  font-size: 0.875rem !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-footer {
+  border-block-start: 1px solid currentColor;
+  border-block-end: 0;
+}
+
+@media (min-width: 48rem) {
+  .site-header,
+  .site-footer {
+    padding-inline: max(2rem, calc((100vw - 70rem) / 2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
