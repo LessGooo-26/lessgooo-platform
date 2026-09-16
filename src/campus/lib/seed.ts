@@ -1,4 +1,5 @@
 import type { Campus, Lesson } from "./model";
+import { curriculum } from "./curriculum";
 export function seedCampus(): Campus {
   const day = (n: number, h = 18) => {
     const d = new Date();
@@ -87,6 +88,7 @@ export function seedCampus(): Campus {
       },
     ],
     lessons: [
+      ...curriculum,
       lesson(
         "linux-1",
         "Se repérer dans un serveur Linux",

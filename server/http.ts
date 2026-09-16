@@ -4,6 +4,10 @@ import { resolve, extname, sep } from "node:path";
 import { DomainError } from "../src/campus/lib/domain";
 import type { Persona } from "../src/campus/lib/model";
 import type { CampusStore } from "./store";
+import { WorkspaceStore, chunkBytes } from "./workspace-store";
+import { Integrations } from "./integrations";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 const maxBody = 6 * 1024 * 1024;
 async function body(req: IncomingMessage, limit: number) {
@@ -37,6 +41,17 @@ export function createCampusServer(
   store: CampusStore,
   options: { port: number; devPort?: number; staticDir?: string },
 ) {
+  const workspace = new WorkspaceStore(store);
+  const integrations = new Integrations(
+    workspace,
+    `http://127.0.0.1:${options.port}`,
+  );
+  const sync = () => {
+    if (integrations.status().drive.connected)
+      void integrations.sync().catch(() => {});
+  };
+  const timer = setInterval(sync, 60000);
+  timer.unref();
   const hosts = new Set([
     `127.0.0.1:${options.port}`,
     `localhost:${options.port}`,
@@ -45,7 +60,7 @@ export function createCampusServer(
   if (options.devPort)
     for (const host of ["localhost", "127.0.0.1"])
       origins.add(`http://${host}:${options.devPort}`);
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("Cache-Control", "no-store");
@@ -60,9 +75,130 @@ export function createCampusServer(
         throw new DomainError("Hôte refusé.", 403);
       if (req.headers.origin && !origins.has(req.headers.origin))
         throw new DomainError("Origine refusée.", 403);
-      if (req.headers["sec-fetch-site"] === "cross-site")
-        throw new DomainError("Requête externe refusée.", 403);
       const url = new URL(req.url || "/", `http://${req.headers.host}`);
+      const oauthCallback =
+        req.method === "GET" &&
+        url.pathname === "/api/integrations/google/callback";
+      if (req.headers["sec-fetch-site"] === "cross-site" && !oauthCallback)
+        throw new DomainError("Requête externe refusée.", 403);
+      const input = async (limit = 1_000_000) => {
+        if (!req.headers["content-type"]?.startsWith("application/json"))
+          throw new DomainError("JSON requis.", 415);
+        try {
+          return JSON.parse((await body(req, limit)).toString("utf8"));
+        } catch (e) {
+          throw e instanceof DomainError
+            ? e
+            : new DomainError("Formulaire invalide.");
+        }
+      };
+      if (oauthCallback) {
+        const cookie =
+          req.headers.cookie
+            ?.split(";")
+            .map((s) => s.trim())
+            .find((s) => s.startsWith("lessgooo-oauth="))
+            ?.slice(15) || "";
+        await integrations.googleFinish(
+          url.searchParams.get("state") || "",
+          url.searchParams.get("code") || "",
+          cookie,
+        );
+        res.writeHead(303, {
+          Location: `http://127.0.0.1:${options.devPort || options.port}/campus.html#integrations`,
+          "Set-Cookie":
+            "lessgooo-oauth=; HttpOnly; SameSite=Lax; Path=/api/integrations/google/callback; Max-Age=0",
+        });
+        sync();
+        return res.end();
+      }
+      if (url.pathname === "/api/workspace") {
+        const p = personaFor(req);
+        if (req.method === "GET") return json(workspace.snapshot(p));
+        if (req.method === "POST") {
+          const d = await input();
+          return json(workspace.action(p, d.action, d.data));
+        }
+        throw new DomainError("Méthode refusée.", 405);
+      }
+      if (
+        url.pathname.startsWith("/api/integrations") ||
+        url.pathname === "/api/checkout"
+      ) {
+        if (personaFor(req) !== "teacher")
+          throw new DomainError("Vue formateur requise.", 403);
+        if (url.pathname === "/api/integrations" && req.method === "GET")
+          return json({
+            ...integrations.status(),
+            checkouts: integrations.checkouts(),
+          });
+        if (
+          url.pathname === "/api/integrations/config" &&
+          req.method === "POST"
+        )
+          return json(integrations.configure(await input()));
+        if (
+          url.pathname === "/api/integrations/google/start" &&
+          req.method === "POST"
+        ) {
+          const start = integrations.googleStart();
+          res.setHeader(
+            "Set-Cookie",
+            `lessgooo-oauth=${start.state}; HttpOnly; SameSite=Lax; Path=/api/integrations/google/callback; Max-Age=600`,
+          );
+          return json({ url: start.url });
+        }
+        if (
+          url.pathname === "/api/integrations/google/sync" &&
+          req.method === "POST"
+        )
+          return json(await integrations.sync());
+        if (url.pathname === "/api/checkout" && req.method === "POST")
+          return json(await integrations.checkout(await input()));
+        if (url.pathname === "/api/checkout" && req.method === "GET")
+          return json(
+            await integrations.verify(url.searchParams.get("reference") || ""),
+          );
+        throw new DomainError("Méthode refusée.", 405);
+      }
+      if (url.pathname.startsWith("/api/media")) {
+        const p = personaFor(req),
+          id = url.searchParams.get("id") || "";
+        if (url.pathname === "/api/media/start" && req.method === "POST")
+          return json(workspace.start(p, await input()));
+        if (url.pathname === "/api/media/chunk" && req.method === "PUT")
+          return json(
+            workspace.chunk(
+              p,
+              id,
+              Number(url.searchParams.get("offset")),
+              await body(req, chunkBytes),
+            ),
+          );
+        if (url.pathname === "/api/media/finish" && req.method === "POST") {
+          const result = workspace.finish(p, id);
+          sync();
+          return json(result);
+        }
+        if (url.pathname === "/api/media" && req.method === "GET") {
+          const file = workspace.media(p, id);
+          res.writeHead(200, {
+            "Content-Type": "application/octet-stream",
+            "Content-Length": file.size,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+          });
+          await pipeline(
+            Readable.from(
+              (function* () {
+                for (const row of workspace.bytes(id)) yield row.bytes;
+              })(),
+            ),
+            res,
+          );
+          return;
+        }
+        throw new DomainError("Méthode refusée.", 405);
+      }
       if (url.pathname === "/api/health" && req.method === "GET") {
         store.read();
         return json({ status: "ok", mode: "local-demo" });
@@ -86,15 +222,59 @@ export function createCampusServer(
             !Number.isInteger(input.version)
           )
             throw new DomainError("Formulaire invalide.");
-          return json(
-            store.mutate(persona, input.version, input.action, input.data),
+          const changed = store.mutate(
+            persona,
+            input.version,
+            input.action,
+            input.data,
           );
+          if (input.action === "submit" || input.action === "review") {
+            const data = input.data as { lesson?: string; id?: string };
+            const sub =
+              input.action === "review"
+                ? changed.state.submissions.find((s) => s.id === data.id)
+                : changed.state.submissions.find(
+                    (s) => s.lesson === data.lesson,
+                  );
+            if (sub)
+              workspace.queue(
+                sub.id,
+                `Devoir · ${changed.state.lessons.find((l) => l.id === sub.lesson)?.title || sub.lesson}`,
+              );
+            sync();
+          }
+          return json(changed);
         }
         throw new DomainError("Méthode refusée.", 405);
       }
       if (url.pathname === "/api/files") {
         const persona = personaFor(req);
         if (req.method === "GET") {
+          const id = url.searchParams.get("id") || "";
+          if (workspace.db.prepare("SELECT id FROM media WHERE id=?").get(id)) {
+            const f = workspace.media(persona, id);
+            // A homework file follows current submission visibility, not merely its original owner.
+            if (
+              !store
+                .snapshot(persona)
+                .state.submissions.some((s) => s.file?.id === id)
+            )
+              throw new DomainError("Fichier introuvable.", 404);
+            res.writeHead(200, {
+              "Content-Type": "application/octet-stream",
+              "Content-Length": f.size,
+              "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+            });
+            await pipeline(
+              Readable.from(
+                (function* () {
+                  for (const row of workspace.bytes(id)) yield row.bytes;
+                })(),
+              ),
+              res,
+            );
+            return;
+          }
           const file = store.file(persona, url.searchParams.get("id") || "");
           res.writeHead(200, {
             "Content-Type": "application/octet-stream",
@@ -117,15 +297,17 @@ export function createCampusServer(
           }
           const file = form.get("file");
           if (!(file instanceof File)) throw new DomainError("Fichier requis.");
-          return json(
-            store.attach(
-              persona,
-              String(form.get("submission") || ""),
-              file.name,
-              new Uint8Array(await file.arrayBuffer()),
-              Number(form.get("version")),
-            ),
+          const changed = store.attach(
+            persona,
+            String(form.get("submission") || ""),
+            file.name,
+            new Uint8Array(await file.arrayBuffer()),
+            Number(form.get("version")),
           );
+          const submission = String(form.get("submission") || "");
+          workspace.queue(submission, `Devoir · ${file.name}`);
+          sync();
+          return json(changed);
         }
         throw new DomainError("Méthode refusée.", 405);
       }
@@ -159,6 +341,10 @@ export function createCampusServer(
       });
       res.end(req.method === "HEAD" ? undefined : await readFile(path));
     } catch (error) {
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       if (error instanceof DomainError)
         json({ error: error.message }, error.status);
       else {
@@ -173,4 +359,6 @@ export function createCampusServer(
       }
     }
   });
+  server.on("close", () => clearInterval(timer));
+  return server;
 }

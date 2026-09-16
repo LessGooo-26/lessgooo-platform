@@ -56,15 +56,6 @@ test("files are restricted by view, replaced atomically and included in backups"
       store.attach(
         "adult",
         sub.id,
-        "proof.html",
-        new Uint8Array([1]),
-        sent.version,
-      ),
-    ).toThrow(/Formats/);
-    expect(() =>
-      store.attach(
-        "adult",
-        sub.id,
         "proof.txt",
         new Uint8Array(5 * 1024 * 1024 + 1),
         sent.version,

@@ -55,3 +55,8 @@ the backend, authentication, authorization and privacy model.
 Statut : UNKNOWN pour un usage institutionnel réel.
 
 Les personas, crédits, stages, horaires, montants et leçons du site Campus fourni sont des exemples fictifs repris pour tester. Ils ne confirment ni tarifs, ni calendriers, ni droits de vrais comptes. Le nom Webforx Tech a été retiré des affirmations de partenariat car il n'est pas confirmé par les documents du dépôt. Le serveur local n'est pas destiné à recevoir de vraies données privées.
+
+## CAMPUS-002 — Activation des services externes et carrière
+Statut : UNKNOWN pour l'activation réelle.
+
+Le 2026-09-16, le propriétaire a confirmé le service de préparation aux entretiens/candidatures et l'email lessgooo.ai26@gmail.com. Les prix, disponibilités, contrats et résultats attendus ne sont pas fixés. Notch Pay est proposé sur la base de ses tarifs publics, mais le marchand, son identité/KYC, son éligibilité et sa clé doivent être activés. Drive exige un client OAuth et le consentement du compte demandé. Les intégrations préparées ne constituent pas une preuve que ces connexions externes ont été activées.

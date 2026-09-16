@@ -38,6 +38,7 @@ import {
   ExternalLink,
   Paperclip,
   LifeBuoy,
+  Rocket,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -82,6 +83,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster, toast } from "sonner";
 import {
+  BrandLogo,
+  HelpTip,
+  HomeworkMap,
+  Launchpad,
+  WorkspacePanel,
+} from "./WorkspacePanel";
+import "./workspace.css";
+import { uploadMedia } from "./lib/workspace-api";
+import {
   personas,
   trackLabel,
   stageLabels,
@@ -97,6 +107,10 @@ import {
 const navItems = [
   ["dashboard", "Vue d’ensemble", LayoutDashboard],
   ["courses", "Parcours & leçons", BookOpen],
+  ["explore", "Projets & ressources", Rocket],
+  ["notebook", "Notes & présentations", FileText],
+  ["library", "Vidéos & fichiers", Video],
+  ["career", "Entretiens & carrière", GraduationCap],
   ["sessions", "Cours Zoom", CalendarDays],
   ["projects", "Travaux & corrections", FolderCheck],
   ["students", "Mes élèves", Users],
@@ -105,6 +119,7 @@ const navItems = [
   ["payments", "Paiements", Wallet],
   ["help", "Questions & réponses", MessageCircle],
   ["settings", "Réglages & guide", Settings],
+  ["integrations", "Drive & paiements en ligne", Cloud],
 ] as const;
 const zones = [
   ["Africa/Douala", "Douala · WAT"],
@@ -115,6 +130,48 @@ const zones = [
   ["Europe/Paris", "Paris"],
   ["Etc/UTC", "UTC"],
 ];
+const fieldHelp: Record<string, string> = {
+  name: "Nom affiché dans le dossier et le suivi des travaux.",
+  email:
+    "Adresse de contact. Aucun email automatique n’est envoyé par ce formulaire.",
+  track:
+    "Le parcours détermine les leçons visibles. Le parcours d’un dossier existant ne peut pas être changé.",
+  parent: "Contact parental associé au dossier Kids de démonstration.",
+  credits:
+    "Crédits de coaching de démonstration disponibles. Une réservation en consomme un ; son annulation le restitue.",
+  title: "Titre affiché dans les listes et le détail de cette ressource.",
+  module: "Regroupe les leçons dans une étape du parcours.",
+  minutes:
+    "Estimation de temps pour cette activité, sans engagement de durée de formation.",
+  level: "Niveau pédagogique ou autonomie observée selon le formulaire.",
+  explanation:
+    "Le contenu du cours : notions, exemples et démarche à comprendre.",
+  task: "Travail concret que l’élève doit réaliser puis remettre.",
+  criteria:
+    "Éléments attendus pour que le formateur puisse valider le travail.",
+  resource:
+    "Lien HTTPS vers une documentation ou ressource pédagogique complémentaire.",
+  start: "Début du créneau ; vérifiez le fuseau horaire affiché.",
+  duration: "Durée du créneau en minutes. Les chevauchements sont refusés.",
+  zoom: "Lien participant Zoom. Ne partagez pas le lien réservé à l’hôte.",
+  replay:
+    "Lien HTTPS vers un enregistrement que vous êtes autorisé à partager.",
+  student: "Dossier élève concerné par cette opération.",
+  status:
+    "État de suivi. Un paiement du registre reste une saisie manuelle, distincte de la vérification Notch Pay.",
+  goal: "Objectif concret de l’accompagnement pour préparer la séance.",
+  amount:
+    "Montant du registre de démonstration. Il ne déclenche aucun encaissement.",
+  currency: "Devise du montant saisi. Aucun taux de conversion n’est appliqué.",
+  reference:
+    "Référence permettant de rapprocher le paiement avec une preuve externe.",
+  feedback:
+    "Expliquez ce qui est réussi et ce qu’il faut améliorer. Seule une validation augmente la progression.",
+  question:
+    "Décrivez votre blocage et les essais déjà effectués, sans identifiant secret.",
+  notes:
+    "Informations utiles au suivi, sans donnée personnelle inutile ni mot de passe.",
+};
 const money = (amount: number, currency: string) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(
     amount / (currency === "XAF" ? 1 : 100),
@@ -153,15 +210,17 @@ function Choice({
   onChange,
   options,
   label,
+  id,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[][];
   label: string;
+  id?: string;
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} className="choice">
+      <SelectTrigger id={id} aria-label={label} className="choice">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -210,8 +269,9 @@ function SideNav({
             !(persona !== "teacher" && id === "students") &&
             !(
               ["parent", "child"].includes(persona) &&
-              ["stages", "coaching"].includes(id)
+              ["stages", "coaching", "career"].includes(id)
             ) &&
+            !(persona !== "teacher" && id === "integrations") &&
             !(persona === "child" && id === "payments"),
         )
         .map(([id, label, Icon]) => (
@@ -278,11 +338,7 @@ function Editor({
     <Dialog open onOpenChange={(b) => !b && onClose()}>
       <DialogContent className="editor-dialog">
         <DialogHeader>
-          <img
-            className="dialog-logo"
-            src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-            alt="LESSGOOO Academy"
-          />
+          <BrandLogo className="dialog-logo" />
           <DialogTitle>{config.title}</DialogTitle>
           <DialogDescription>
             {config.description ||
@@ -298,13 +354,19 @@ function Editor({
           className="form-stack"
         >
           {config.fields.map((f) => (
-            <label key={f.key} className="field">
+            <label key={f.key} htmlFor={`field-${f.key}`} className="field">
               <span>
                 {f.label}
                 {f.required ? " *" : ""}
+                <HelpTip label={`Aide : ${f.label}`}>
+                  {f.hint ||
+                    fieldHelp[f.key] ||
+                    `Renseignez ${f.label.toLowerCase()}. Cette valeur sera enregistrée dans le campus local.`}
+                </HelpTip>
               </span>
               {f.options ? (
                 <Choice
+                  id={`field-${f.key}`}
                   label={f.label}
                   value={String(v[f.key] ?? "")}
                   onChange={(value) => setV({ ...v, [f.key]: value })}
@@ -312,6 +374,7 @@ function Editor({
                 />
               ) : f.type === "textarea" ? (
                 <Textarea
+                  id={`field-${f.key}`}
                   value={String(v[f.key] ?? "")}
                   required={f.required}
                   rows={5}
@@ -320,6 +383,7 @@ function Editor({
                 />
               ) : (
                 <Input
+                  id={`field-${f.key}`}
                   type={f.type || "text"}
                   step={f.type === "number" ? "any" : undefined}
                   value={String(v[f.key] ?? "")}
@@ -361,7 +425,11 @@ function Editor({
 export default function CampusApp() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [persona, setPersona] = useState<Persona>("teacher"),
-    [page, setPage] = useState("dashboard"),
+    [page, setPage] = useState(() =>
+      navItems.some(([id]) => id === location.hash.slice(1))
+        ? location.hash.slice(1)
+        : "dashboard",
+    ),
     [zone, setZone] = useState("Africa/Douala"),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
@@ -374,6 +442,8 @@ export default function CampusApp() {
     [submission, setSubmission] = useState<Submission | null>(null),
     [stage, setStage] = useState<Stage | null>(null);
   const snapRef = useRef(snapshot);
+  const pageRef = useRef(page);
+  pageRef.current = page;
   snapRef.current = snapshot;
   const personaRef = useRef(persona);
   personaRef.current = persona;
@@ -401,6 +471,26 @@ export default function CampusApp() {
     if (stored && zones.some((z) => z[0] === stored)) setZone(stored);
     reload();
   }, [reload]);
+  useEffect(() => {
+    const navigate = () => {
+      const section = location.hash.slice(1);
+      if (!navItems.some(([id]) => id === section)) return;
+      if (
+        !window.dispatchEvent(
+          new Event("campus-before-navigate", { cancelable: true }),
+        )
+      ) {
+        history.replaceState(null, "", `#${pageRef.current}`);
+        return;
+      }
+      setPage(section);
+      setQuery("");
+      setFilter("all");
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener("hashchange", navigate);
+    return () => window.removeEventListener("hashchange", navigate);
+  }, []);
   const act = async (action: string, data: unknown) => {
     if (busy) return false;
     setBusy(true);
@@ -433,12 +523,26 @@ export default function CampusApp() {
     }
   };
   const go = (p: string) => {
+    if (
+      !window.dispatchEvent(
+        new Event("campus-before-navigate", { cancelable: true }),
+      )
+    )
+      return;
     setPage(p);
+    history.replaceState(null, "", `#${p}`);
     setQuery("");
     setFilter("all");
+    window.scrollTo({ top: 0 });
   };
   const switchPersona = (p: Persona) => {
     if (busy) return;
+    if (
+      !window.dispatchEvent(
+        new Event("campus-before-navigate", { cancelable: true }),
+      )
+    )
+      return;
     personaRef.current = p;
     setPersona(p);
     setSnapshot(null);
@@ -817,14 +921,9 @@ export default function CampusApp() {
   const attach = async (sub: Submission, file: File) => {
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("submission", sub.id);
-      form.append("version", String(snapRef.current?.version));
-      const r = await fetch("/api/files", {
-        method: "POST",
+      await uploadMedia(file, persona, () => {}, sub.id);
+      const r = await fetch("/api/campus", {
         headers: { "x-campus-persona": persona },
-        body: form,
       });
       const d = await readSnapshot(r);
       if (!r.ok) throw new Error(d.error);
@@ -962,10 +1061,7 @@ export default function CampusApp() {
       <Toaster richColors position="bottom-right" />
       <Sidebar className="campus-sidebar">
         <SidebarHeader className="brand">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-            alt="LessGooo Academy"
-          />
+          <BrandLogo />
           <span>CAMPUS · APPRENDRE & PRATIQUER</span>
         </SidebarHeader>
         <SidebarContent className="side-content">
@@ -997,11 +1093,7 @@ export default function CampusApp() {
             <ChevronRight size={14} />
             <strong>{sectionTitle}</strong>
           </div>
-          <img
-            className="top-logo"
-            src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-            alt="LESSGOOO Academy"
-          />
+          <BrandLogo className="top-logo" />
           <div className="top-controls">
             <Choice
               value={zone}
@@ -1012,6 +1104,10 @@ export default function CampusApp() {
               options={zones}
               label="Fuseau horaire"
             />
+            <HelpTip label="Aide : fuseau horaire">
+              Ce réglage change l’affichage des horaires, sans déplacer les
+              séances enregistrées.
+            </HelpTip>
             <div className="top-avatar">{user.name[0]}</div>
           </div>
         </header>
@@ -1026,6 +1122,11 @@ export default function CampusApp() {
             options={personas.map((p) => [p.value, "Vue " + p.label])}
             label="Choisir une vue de test"
           />
+          <HelpTip label="Aide : vues de démonstration">
+            Teste le parcours du formateur, de l’adulte, du parent ou de
+            l’enfant. Ces vues locales ne remplacent pas une connexion
+            individuelle sécurisée.
+          </HelpTip>
         </div>
         <main id="campus-main" className="content">
           <div className="page-head">
@@ -1063,6 +1164,16 @@ export default function CampusApp() {
                         help: "Un blocage ? La discussion continue entre les cours.",
                         settings:
                           "Les repères pour tester et prendre en main votre campus.",
+                        explore:
+                          "Des défis concrets, des dépôts de référence et des vidéos pour passer à l’action.",
+                        notebook:
+                          "Un endroit pour tes idées, tes notes de cours et tes présentations.",
+                        library:
+                          "Tes vidéos, fichiers et ressources, réunis au même endroit.",
+                        career:
+                          "Transforme tes projets en réponses convaincantes et organise tes candidatures.",
+                        integrations:
+                          "Relie les devoirs à Google Drive et prépare les règlements en ligne.",
                       } as Record<string, string>
                     )[page]}
               </p>
@@ -1074,8 +1185,8 @@ export default function CampusApp() {
               <h2>Le campus n’a pas pu être chargé</h2>
               <p>{error}</p>
               <Button onClick={() => reload()}>Réessayer</Button>
-              <a href="/signin-with-chatgpt?return_to=/" target="_top">
-                Se connecter
+              <a href={`${import.meta.env.BASE_URL}index.html`}>
+                Ouvrir le site public
               </a>
             </div>
           ) : loading && !c ? (
@@ -1089,6 +1200,8 @@ export default function CampusApp() {
               <>
                 {page === "dashboard" && (
                   <>
+                    <Launchpad c={c} go={go} />
+                    <HomeworkMap c={c} openLesson={setLesson} />
                     <div className="stats-grid">
                       {[
                         [
@@ -1381,11 +1494,7 @@ export default function CampusApp() {
                             </button>
                           )}
                           <div className="partner-names">
-                            <img
-                              className="partner-logo"
-                              src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-                              alt="LESSGOOO Academy"
-                            />
+                            <BrandLogo className="partner-logo" />
                             <span>Comprendre. Pratiquer. Progresser.</span>
                           </div>
                         </div>
@@ -2099,13 +2208,40 @@ export default function CampusApp() {
                     )}
                   </div>
                 )}
+                {[
+                  "explore",
+                  "notebook",
+                  "library",
+                  "career",
+                  "integrations",
+                ].includes(page) && (
+                  <WorkspacePanel
+                    key={`${persona}-${page}`}
+                    page={page}
+                    persona={persona}
+                    c={c}
+                  />
+                )}
                 {page === "settings" && (
                   <div className="settings-grid">
                     <section className="panel settings-card">
                       <span className="tile-icon blue">
                         <LifeBuoy />
                       </span>
-                      <h2>Notre premier test, ensemble</h2>
+                      <h2>
+                        Notre premier test, ensemble{" "}
+                        <HelpTip>
+                          Le changement de vue sert à tester les parcours de
+                          démonstration. Il ne connecte pas de vrais comptes
+                          élèves.
+                        </HelpTip>
+                      </h2>
+                      <Button
+                        variant="outline"
+                        onClick={() => go("integrations")}
+                      >
+                        Configurer Drive et Notch Pay
+                      </Button>
                       <ol className="steps">
                         <li>
                           <strong>Remettre un travail</strong>
@@ -2233,10 +2369,7 @@ export default function CampusApp() {
             )
           )}
           <footer className="page-footer">
-            <img
-              src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-              alt="LESSGOOO Academy"
-            />
+            <BrandLogo />
             <span>LessGooo Academy · Apprendre pour aller plus loin.</span>
             <span>Zoom · DevOps · Kids</span>
           </footer>
@@ -2255,11 +2388,7 @@ export default function CampusApp() {
         <Dialog open onOpenChange={(b) => !b && setLesson(null)}>
           <DialogContent className="detail-dialog">
             <DialogHeader>
-              <img
-                className="dialog-logo"
-                src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-                alt="LESSGOOO Academy"
-              />
+              <BrandLogo className="dialog-logo" />
               <DialogDescription>
                 {trackLabel(lesson.track)} · {lesson.module} · {lesson.minutes}{" "}
                 min
@@ -2347,11 +2476,7 @@ export default function CampusApp() {
         <Dialog open onOpenChange={(b) => !b && setSession(null)}>
           <DialogContent className="detail-dialog">
             <DialogHeader>
-              <img
-                className="dialog-logo"
-                src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-                alt="LESSGOOO Academy"
-              />
+              <BrandLogo className="dialog-logo" />
               <DialogDescription>
                 {trackLabel(session.track)} · {date(session.start)} ·{" "}
                 {session.duration} min
@@ -2460,11 +2585,7 @@ export default function CampusApp() {
             <Dialog open onOpenChange={(b) => !b && setSubmission(null)}>
               <DialogContent className="detail-dialog">
                 <DialogHeader>
-                  <img
-                    className="dialog-logo"
-                    src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-                    alt="LESSGOOO Academy"
-                  />
+                  <BrandLogo className="dialog-logo" />
                   <DialogDescription>
                     {name(s.student)} · {date(s.created)}
                   </DialogDescription>
@@ -2491,12 +2612,11 @@ export default function CampusApp() {
                       <Paperclip size={18} />
                       {busy
                         ? "Envoi en cours…"
-                        : "Joindre un fichier (5 Mo maximum)"}
+                        : "Joindre un fichier (tous formats · 200 Mo maximum)"}
                       <input
                         aria-label="Joindre un fichier"
                         disabled={busy}
                         type="file"
-                        accept=".sb3,.png,.jpg,.jpeg,.pdf,.txt,.md"
                         onChange={(e) => {
                           if (e.target.files?.[0]) attach(s, e.target.files[0]);
                         }}
@@ -2567,11 +2687,7 @@ export default function CampusApp() {
             <Dialog open onOpenChange={(b) => !b && setStage(null)}>
               <DialogContent className="detail-dialog">
                 <DialogHeader>
-                  <img
-                    className="dialog-logo"
-                    src={`${import.meta.env.BASE_URL}logo-lessgooo.png`}
-                    alt="LESSGOOO Academy"
-                  />
+                  <BrandLogo className="dialog-logo" />
                   <DialogDescription>
                     Suivi de stage · Démonstration
                   </DialogDescription>

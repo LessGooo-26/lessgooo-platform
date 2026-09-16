@@ -3,6 +3,8 @@
 This directory is the authoritative product and organizational knowledge base
 for the LESSGOOO application.
 
+Campus expansion approved on 2026-09-16: [learning, career and integrations](product/campus-expansion.md).
+
 ## Purpose
 
 Codex and human developers should use these documents to determine what

@@ -8,6 +8,7 @@ import {
 } from "../src/campus/lib/domain";
 import { seedCampus } from "../src/campus/lib/seed";
 import type { Campus, Persona, Snapshot } from "../src/campus/lib/model";
+import { curriculum } from "../src/campus/lib/curriculum";
 
 // This database holds a single local demonstration, never authenticated school records.
 export class CampusStore {
@@ -21,13 +22,59 @@ export class CampusStore {
     this.db
       .prepare("INSERT OR IGNORE INTO campus VALUES (1, ?, 1)")
       .run(JSON.stringify(seedCampus()));
+    const current = this.read();
+    // Normalize identifiers from the first local draft, retaining every submission.
+    let normalized = false;
+    for (const old of [...current.state.lessons]) {
+      if (!old.id.startsWith("kids-kids-")) continue;
+      const id = old.id.replace("kids-kids-", "kids-");
+      if (!curriculum.some((l) => l.id === id)) continue;
+      const canonical = current.state.lessons.find((l) => l.id === id);
+      if (
+        canonical &&
+        (
+          [
+            "title",
+            "track",
+            "module",
+            "minutes",
+            "level",
+            "explanation",
+            "task",
+            "criteria",
+            "resource",
+          ] as const
+        ).some((key) => canonical[key] !== old[key])
+      )
+        continue;
+      for (const sub of current.state.submissions)
+        if (sub.lesson === old.id) sub.lesson = id;
+      if (canonical)
+        current.state.lessons = current.state.lessons.filter(
+          (l) => l.id !== old.id,
+        );
+      else old.id = id;
+      normalized = true;
+    }
+    const missing = curriculum.filter(
+      (l) => !current.state.lessons.some((existing) => existing.id === l.id),
+    );
+    if (missing.length || normalized) {
+      current.state.lessons.push(...missing);
+      current.state.lessons.sort((a, b) =>
+        a.module.localeCompare(b.module, "fr"),
+      );
+      this.save(current.state, current.version);
+    }
   }
   read() {
     const row = this.db
       .prepare("SELECT state, version FROM campus WHERE id=1")
       .get()!;
+    const state = JSON.parse(String(row.state)) as Campus;
+    state.lessons.sort((a, b) => a.module.localeCompare(b.module, "fr"));
     return {
-      state: JSON.parse(String(row.state)) as Campus,
+      state,
       version: Number(row.version),
     };
   }
@@ -81,8 +128,7 @@ export class CampusStore {
       throw new DomainError("Joignez le fichier depuis la vue élève.", 403);
     if (!bytes.length || bytes.length > 5 * 1024 * 1024)
       throw new DomainError("Fichier vide ou supérieur à 5 Mo.", 413);
-    if (!/\.(sb3|png|jpe?g|pdf|txt|md)$/i.test(filename))
-      throw new DomainError("Formats acceptés : SB3, PNG, JPG, PDF, TXT, MD.");
+    // Arbitrary formats are opaque downloads, never executed or served inline.
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const current = this.read();

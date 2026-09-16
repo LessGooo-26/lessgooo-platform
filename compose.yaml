@@ -1,6 +1,9 @@
 services:
   campus:
     build: .
+    env_file:
+      - path: .env.local
+        required: false
     ports: ["127.0.0.1:4173:4173"]
     volumes: ["campus-data:/app/.local-data"]
     restart: unless-stopped

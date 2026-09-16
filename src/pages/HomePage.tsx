@@ -6,6 +6,7 @@ import { Section } from '../components/ui/Section'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import { useLocale } from '../i18n/LocaleContext'
 import { publicRoutes } from '../routes/public-routes'
+import { LearningPreview } from '../components/content/LearningPreview'
 
 export function HomePage() {
   const { content } = useLocale()
@@ -48,6 +49,7 @@ export function HomePage() {
       <Section labelledBy="continuity-title">
         <CallToAction eyebrow={home.continuityEyebrow} title={home.continuityTitle} description={home.continuityDescription} action={{ label: home.contactAction, to: publicRoutes.contact }} />
       </Section>
+      <LearningPreview />
     </>
   )
 }
