@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
 
 permissions:
   contents: read
@@ -35,3 +35,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Build local container
+        run: docker build -t lessgooo-campus:ci .
+      - name: Verify container health
+        run: |
+          docker run -d --name campus-ci -p 127.0.0.1:4173:4173 lessgooo-campus:ci
+          for attempt in $(seq 1 30); do
+            if curl --fail http://127.0.0.1:4173/api/health; then
+              curl --fail http://127.0.0.1:4173/campus.html
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs campus-ci
+          exit 1
+      - name: Stop test container
+        if: always()
+        run: docker rm -f campus-ci || true

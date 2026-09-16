@@ -51,3 +51,7 @@ Status: UNKNOWN
 
 Before implementing private learner/parent/finance records, select and document
 the backend, authentication, authorization and privacy model.
+## CAMPUS-001 — Règles du prototype et accès réels
+Statut : UNKNOWN pour un usage institutionnel réel.
+
+Les personas, crédits, stages, horaires, montants et leçons du site Campus fourni sont des exemples fictifs repris pour tester. Ils ne confirment ni tarifs, ni calendriers, ni droits de vrais comptes. Le nom Webforx Tech a été retiré des affirmations de partenariat car il n'est pas confirmé par les documents du dépôt. Le serveur local n'est pas destiné à recevoir de vraies données privées.
