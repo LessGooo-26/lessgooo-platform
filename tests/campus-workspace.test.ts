@@ -389,6 +389,51 @@ test("Notch Pay validates amount, reference and provider identity before confirm
   expect((await i.verify(created.reference)).status).toBe("complete");
   await expect(i.verify("unknown")).rejects.toThrow(/inconnue/);
 });
+test("Notch Pay supports real merchant_reference responses and verifies by provider reference", async () => {
+  const w = setup();
+  let merchantReference = "",
+    sandbox = true,
+    mismatchedMerchant = false;
+  const fake: typeof fetch = async (url, init) => {
+    if (init?.method === "POST")
+      merchantReference = JSON.parse(String(init.body)).reference;
+    else
+      expect(String(url)).toBe(
+        "https://api.notchpay.co/payments/trx.test_fixture",
+      );
+    return Response.json({
+      transaction: {
+        reference: "trx.test_fixture",
+        merchant_reference: mismatchedMerchant ? "wrong" : merchantReference,
+        amount: 100,
+        currency: "XAF",
+        status: "pending",
+        sandbox: init?.method === "POST" ? sandbox : Number(sandbox),
+      },
+      authorization_url: "https://pay.notchpay.co/trx.test_fixture",
+    });
+  };
+  const i = new Integrations(
+    w,
+    "http://127.0.0.1:4173",
+    { NOTCHPAY_PUBLIC_KEY: "test-key", NOTCHPAY_MODE: "test" },
+    fake,
+  );
+  const input = {
+    amount: 100,
+    currency: "XAF",
+    email: "client@example.test",
+    description: "Sandbox fixture",
+  };
+  const created = await i.checkout(input);
+  expect((await i.verify(created.reference)).status).toBe("pending");
+  mismatchedMerchant = true;
+  await expect(i.verify(created.reference)).rejects.toThrow(/correspond/);
+  mismatchedMerchant = false;
+  sandbox = false;
+  await expect(i.verify(created.reference)).rejects.toThrow(/correspond/);
+  await expect(i.checkout(input)).rejects.toThrow(/différente/);
+});
 test("external checkout URLs cannot redirect a user to another host", async () => {
   const w = setup();
   const fake: typeof fetch = async (_url, init) => {

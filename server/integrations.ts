@@ -15,21 +15,43 @@ import {
 } from "../src/campus/lib/workspace";
 import { WorkspaceStore } from "./workspace-store";
 
+const paymentFields = {
+  amount: z.number(),
+  currency: z.string(),
+  status: z.enum([
+    "pending",
+    "processing",
+    "complete",
+    "failed",
+    "canceled",
+    "expired",
+  ]),
+  sandbox: z
+    .union([z.boolean(), z.literal(0), z.literal(1)])
+    .transform((value) => Boolean(value))
+    .optional(),
+};
 const paymentResult = z.object({
-  transaction: z.object({
-    id: z.string().min(1),
-    reference: z.string(),
-    amount: z.number(),
-    currency: z.string(),
-    status: z.enum([
-      "pending",
-      "processing",
-      "complete",
-      "failed",
-      "canceled",
-      "expired",
-    ]),
-  }),
+  transaction: z.union([
+    // The live API separates its transaction reference from our merchant reference.
+    z
+      .object({
+        ...paymentFields,
+        reference: z.string().min(1),
+        merchant_reference: z.string().min(1),
+      })
+      .transform((t) => ({
+        ...t,
+        id: t.reference,
+        reference: t.merchant_reference,
+      })),
+    // Also accept the id/reference shape shown in the provider documentation.
+    z.object({
+      ...paymentFields,
+      id: z.string().min(1),
+      reference: z.string().min(1),
+    }),
+  ]),
   authorization_url: z.string().url().optional(),
 });
 export class Integrations {
@@ -479,7 +501,9 @@ export class Integrations {
       if (
         t.reference !== reference ||
         t.amount !== d.data.amount ||
-        t.currency !== d.data.currency
+        t.currency !== d.data.currency ||
+        (t.sandbox !== undefined &&
+          t.sandbox !== (this.value("NOTCHPAY_MODE") === "test"))
       )
         throw new DomainError(
           "Le prestataire a retourné une commande différente.",
@@ -515,7 +539,7 @@ export class Integrations {
     if (!expected) throw new DomainError("Commande inconnue.", 404);
     const result = paymentResult.safeParse(
       await this.json(
-        `https://api.notchpay.co/payments/${encodeURIComponent(reference)}`,
+        `https://api.notchpay.co/payments/${encodeURIComponent(String(expected.provider || reference))}`,
         { headers: { Authorization: this.value("NOTCHPAY_PUBLIC_KEY") } },
       ),
     );
@@ -526,7 +550,9 @@ export class Integrations {
       t.reference !== reference ||
       t.id !== expected.provider ||
       t.amount !== expected.amount ||
-      t.currency !== expected.currency
+      t.currency !== expected.currency ||
+      (t.sandbox !== undefined &&
+        t.sandbox !== (this.value("NOTCHPAY_MODE") === "test"))
     )
       throw new DomainError(
         "La transaction ne correspond pas à la commande.",

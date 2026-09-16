@@ -10,6 +10,8 @@ La requête GET /api/health contrôle la lecture de la base. L'API refuse les or
 
 Les fichiers Drive utilisent un transfert reprenable ; leur identifiant distant est conservé pour mettre à jour la même copie lors d'une nouvelle correction. La file garde ses erreurs et n'annonce un succès qu'après confirmation distante. Les traitements sont sérialisés ; une modification survenue pendant un transfert reste en attente du passage suivant. Les transactions Notch Pay ne sont confirmées qu'après interrogation serveur et correspondance de tous les champs attendus. Aucun webhook ni secret n'est exposé sur GitHub Pages.
 
+Le connecteur Notch Pay accepte le format documenté `id/reference` et le format observé en sandbox `reference/merchant_reference`. Dans ce dernier cas, la référence prestataire est conservée séparément et utilisée pour la lecture de la transaction. Le marqueur sandbox accepte uniquement un booléen ou 0/1 et doit correspondre à la configuration locale lorsqu'il est présent. La création d'un lien ne vaut jamais confirmation de paiement.
+
 La commande backup utilise l'API SQLite, compatible WAL, et inclut toutes les pièces jointes. Le test de restauration ouvre la copie dans une base distincte et vérifie les octets d'une pièce jointe. Les tests ne touchent jamais la base utilisateur : ils utilisent des dossiers temporaires isolés ou :memory:.
 
 Le Dockerfile comprend les validations avant compilation et un runtime non-root. Compose limite le port hôte à 127.0.0.1 et conserve un volume. Ne pas configurer CAMPUS_CONTAINER=1 en dehors du conteneur. Le volume et la base ne doivent pas être publiés.
