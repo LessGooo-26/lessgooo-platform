@@ -27,6 +27,46 @@
 }
 .top-logo.brand-link {
   width: 142px;
+  flex-shrink: 0;
+}
+.breadcrumb {
+  min-width: 0;
+}
+.breadcrumb strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.breadcrumb > button,
+.breadcrumb > svg {
+  flex-shrink: 0;
+}
+@media (min-width: 768px) and (max-width: 1180px) {
+  header.topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: auto;
+    min-height: 86px;
+    gap: 4px 14px;
+    padding-block: 10px;
+  }
+  .breadcrumb > span {
+    display: none;
+  }
+  .top-logo.brand-link {
+    margin: 0;
+  }
+  .topbar .top-controls {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .topbar .top-controls .choice {
+    height: 28px !important;
+  }
+  .topbar .top-avatar {
+    display: none;
+  }
 }
 .dialog-logo.brand-link {
   width: 142px;
