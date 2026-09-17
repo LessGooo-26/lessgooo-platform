@@ -65,3 +65,16 @@ Le 2026-09-16, le propriétaire a confirmé le service de préparation aux entre
 Status: UNKNOWN / pending configuration (2026-09-17).
 
 The owner requested AI assistance. No OpenAI API key is configured in the local environment. Secure account/project selection and key provisioning are pending. No connected AI assistant is claimed or simulated.
+
+Local automatic video transcription is now configured with faster-whisper and
+does not require an API account. A general conversational AI assistant still
+requires a separate provider/account decision.
+
+## CAMPUS-004 — Paid consultations
+Status: UNKNOWN / awaiting the owner's commercial details (2026-09-17).
+
+Carles requested paid direct consultations. The amount, currency, duration,
+availability and live merchant approval remain unconfirmed. Enquiries are
+available through the branded public Google Form; no payment or appointment is
+created. Public form submission, a private response spreadsheet and the owner's
+email notification were verified with a clearly marked test response.

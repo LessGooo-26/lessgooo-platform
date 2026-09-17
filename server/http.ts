@@ -9,6 +9,8 @@ import { Integrations } from "./integrations";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { serveMedia } from "./media-stream";
+import { Studio } from "./studio";
+import { transcriptText, transcriptVtt } from "../src/campus/lib/studio";
 
 const maxBody = 6 * 1024 * 1024;
 async function body(req: IncomingMessage, limit: number) {
@@ -43,6 +45,7 @@ export function createCampusServer(
   options: { port: number; devPort?: number; staticDir?: string },
 ) {
   const workspace = new WorkspaceStore(store);
+  const studio = new Studio(workspace);
   const integrations = new Integrations(
     workspace,
     `http://127.0.0.1:${options.port}`,
@@ -121,6 +124,55 @@ export function createCampusServer(
           return json(workspace.action(p, d.action, d.data));
         }
         throw new DomainError("Méthode refusée.", 405);
+      }
+      if (url.pathname.startsWith("/api/studio")) {
+        const p = personaFor(req);
+        if (url.pathname === "/api/studio/search" && req.method === "GET")
+          return json(studio.searchableTranscripts(p));
+        if (url.pathname === "/api/studio" && req.method === "GET")
+          return json(studio.snapshot(p));
+        if (req.method === "POST") {
+          const data = await input();
+          if (url.pathname === "/api/studio/import")
+            return json(studio.import(p, data));
+          if (url.pathname === "/api/studio/cancel")
+            return json(studio.cancel(p, String(data.id)));
+          if (url.pathname === "/api/studio/transcribe")
+            return json(studio.retry(p, String(data.id)));
+          if (url.pathname === "/api/studio/request")
+            return json(studio.request(p, data));
+          if (url.pathname === "/api/studio/request-status")
+            return json(studio.updateRequest(p, data));
+        }
+        throw new DomainError("Method not allowed.", 405);
+      }
+      if (url.pathname === "/api/transcript" && req.method === "GET") {
+        const selected = url.searchParams.get("persona");
+        if (
+          selected &&
+          (!["teacher", "adult", "parent", "child"].includes(selected) ||
+            (req.headers["x-campus-persona"] &&
+              req.headers["x-campus-persona"] !== selected))
+        )
+          throw new DomainError("Invalid view.", 403);
+        const t = studio.transcript(
+          (selected as Persona) || personaFor(req),
+          url.searchParams.get("id") || "",
+        );
+        const format = url.searchParams.get("format");
+        if (!format) return json({ transcript: t, ready: studio.ready() });
+        if (!t || t.status !== "done")
+          throw new DomainError("Transcript is not ready.", 404);
+        if (!["txt", "vtt"].includes(format))
+          throw new DomainError("Invalid format.");
+        res.writeHead(200, {
+          "Content-Type":
+            format === "vtt"
+              ? "text/vtt; charset=utf-8"
+              : "text/plain; charset=utf-8",
+          "Content-Disposition": `${url.searchParams.get("download") ? "attachment" : "inline"}; filename="transcript.${format}"`,
+        });
+        return res.end(format === "vtt" ? transcriptVtt(t) : transcriptText(t));
       }
       if (
         url.pathname.startsWith("/api/integrations") ||
@@ -370,6 +422,9 @@ export function createCampusServer(
       }
     }
   });
-  server.on("close", () => clearInterval(timer));
+  server.on("close", () => {
+    clearInterval(timer);
+    studio.close();
+  });
   return server;
 }

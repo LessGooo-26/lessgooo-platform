@@ -1,3 +1,9 @@
+import {
+  CampusSearch,
+  ServiceDesk,
+  ServiceAlerts,
+  LiveClassTools,
+} from "./StudioPanel";
 import { tx, localeCode } from "./lib/language";
 import {
   useState,
@@ -110,6 +116,8 @@ import {
 } from "@/lib/model";
 const navItems = [
   ["dashboard", "Vue d’ensemble", LayoutDashboard],
+  ["search", "Recherche", Search],
+  ["services", "Services & demandes", BriefcaseBusiness],
   ["courses", "Parcours & leçons", BookOpen],
   ["explore", "Projets & ressources", Rocket],
   ["notebook", "Notes & présentations", FileText],
@@ -117,7 +125,7 @@ const navItems = [
   ["galleries", "Galeries photo", Blocks],
   ["profile", "Mon profil", Users],
   ["career", "Entretiens & carrière", GraduationCap],
-  ["sessions", "Cours Zoom", CalendarDays],
+  ["sessions", "Cours en direct", CalendarDays],
   ["projects", "Travaux & corrections", FolderCheck],
   ["students", "Mes élèves", Users],
   ["coaching", "One-on-one", MessagesSquare],
@@ -159,7 +167,7 @@ const fieldHelp: Record<string, string> = {
     "Lien HTTPS vers une documentation ou ressource pédagogique complémentaire.",
   start: "Début du créneau ; vérifiez le fuseau horaire affiché.",
   duration: "Durée du créneau en minutes. Les chevauchements sont refusés.",
-  zoom: "Lien participant Zoom. Ne partagez pas le lien réservé à l’hôte.",
+  zoom: "Lien Google Meet ou Zoom. Ne partagez pas le lien réservé à l’hôte.",
   replay:
     "Lien HTTPS vers un enregistrement que vous êtes autorisé à partager.",
   student: "Dossier élève concerné par cette opération.",
@@ -278,7 +286,7 @@ function SideNav({
               ["stages", "coaching", "career"].includes(id)
             ) &&
             !(persona !== "teacher" && id === "integrations") &&
-            !(persona === "child" && id === "payments"),
+            !(persona === "child" && ["payments", "services"].includes(id)),
         )
         .map(([id, label, Icon]) => (
           <SidebarMenuItem key={id}>
@@ -714,7 +722,7 @@ export default function CampusApp() {
     },
     zoom: {
       key: "zoom",
-      label: "Lien participant Zoom",
+      label: "Lien Google Meet ou Zoom",
       type: "url",
       hint: "Laissez vide si la réunion n’est pas encore créée.",
     },
@@ -794,7 +802,7 @@ export default function CampusApp() {
     });
   const openSession = (s?: Session) =>
     setEditor({
-      title: s ? "Modifier le cours Zoom" : "Planifier un cours Zoom",
+      title: s ? "Modifier le cours en direct" : "Planifier un cours en direct",
       description:
         "Les dates saisies avec un fuseau seront adaptées à chaque affichage.",
       action: "session",
@@ -1001,7 +1009,7 @@ export default function CampusApp() {
         `DTSTART:${stamp(new Date(s.start))}`,
         `DTEND:${stamp(new Date(Date.parse(s.start) + s.duration * 60000))}`,
         `SUMMARY:${clean(s.title)}`,
-        `DESCRIPTION:Cours LessGooo sur Zoom ${s.zoom}`,
+        `DESCRIPTION:Cours LessGooo en direct ${s.zoom}`,
         `STATUS:${s.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
         "END:VEVENT",
         "END:VCALENDAR",
@@ -1135,6 +1143,7 @@ export default function CampusApp() {
           <BrandLogo className="top-logo" />
           <div className="top-controls">
             <LanguageSwitch />
+            {teacher && <ServiceAlerts go={go} />}
             <Choice
               value={zone}
               onChange={(v) => {
@@ -1176,12 +1185,15 @@ export default function CampusApp() {
           </HelpTip>
         </div>
         <main id="campus-main" className="content">
+          {page === "sessions" && teacher && <LiveClassTools />}
           <div className="page-head">
             <div>
               <div className="eyebrow">{tx("LESSGOOO ACADEMY")}</div>
               <h1>
                 {page === "dashboard"
-                  ? `${locale === "en" ? "Hello" : "Bonjour"} ${user.name}`
+                  ? locale === "en"
+                    ? "Welcome to your campus"
+                    : "Bienvenue dans votre campus"
                   : tx(sectionTitle)}
                 {page === "dashboard" && (
                   <span className="greeting-dot">{tx(".")}</span>
@@ -1193,14 +1205,14 @@ export default function CampusApp() {
                     ? teacher
                       ? "Une vue claire sur les cours, les élèves et leurs prochaines étapes."
                       : persona === "parent"
-                        ? "Les petits progrès de Maya font les grandes réussites."
+                        ? "Chaque petit progrès compte."
                         : "Prêt à apprendre quelque chose et à le mettre en pratique ?"
                     : (
                         {
                           courses:
                             "Comprendre d’abord. Pratiquer ensuite. Expliquer pour maîtriser.",
                           sessions:
-                            "Tous vos cours en direct sur Zoom, à votre heure locale.",
+                            "Tous vos cours en direct en direct, à votre heure locale.",
                           projects:
                             "Des réalisations concrètes et des retours pour avancer.",
                           students:
@@ -1275,7 +1287,7 @@ export default function CampusApp() {
                           upcoming.length,
                           CalendarDays,
                           "orange",
-                          "100 % sur Zoom",
+                          "100 % en direct",
                         ],
                         [
                           teacher
@@ -1356,7 +1368,7 @@ export default function CampusApp() {
                                   {tx(trackLabel(upcoming[0].track))}
                                   {tx(" ")}
                                   <span className="dot-sep">{tx("/")}</span>
-                                  {tx("Avec Eddy")}
+                                  {tx("Avec le formateur")}
                                 </span>
                                 <Button
                                   variant="secondary"
@@ -1965,7 +1977,7 @@ export default function CampusApp() {
                               {tx(
                                 s.student
                                   ? name(s.student)
-                                  : "Séance individuelle avec Eddy",
+                                  : "Séance individuelle",
                               )}
                             </p>
                             {s.goal && <blockquote>{s.goal}</blockquote>}
@@ -2022,12 +2034,12 @@ export default function CampusApp() {
                                     target="_blank"
                                     rel="noreferrer"
                                   >
-                                    {tx("Rejoindre Zoom")}
+                                    {tx("Rejoindre le cours")}
                                   </a>
                                 ) : (
                                   <small>
                                     {tx(
-                                      "Lien Zoom à renseigner par le formateur.",
+                                      "Lien de réunion à renseigner par le formateur.",
                                     )}
                                   </small>
                                 )}
@@ -2085,7 +2097,7 @@ export default function CampusApp() {
                                   })
                                 }
                               >
-                                {tx("Modifier le créneau / Zoom")}
+                                {tx("Modifier le créneau / réunion")}
                               </Button>
                             )}
                           </article>
@@ -2352,6 +2364,10 @@ export default function CampusApp() {
                     )}
                   </div>
                 )}
+                {page === "search" && (
+                  <CampusSearch persona={persona} campus={c} go={go} />
+                )}
+                {page === "services" && <ServiceDesk persona={persona} />}
                 {[
                   "explore",
                   "notebook",
@@ -2426,7 +2442,7 @@ export default function CampusApp() {
                           <strong>{tx("Voir le suivi parental")}</strong>
                           <p>
                             {tx(
-                              "Ouvrez la vue Parent pour consulter les travaux, les cours et les paiements de Maya.",
+                              "Ouvrez la vue Parent pour consulter les travaux, les cours et les paiements de votre enfant.",
                             )}
                           </p>
                         </li>
@@ -2475,7 +2491,7 @@ export default function CampusApp() {
                             )}
                           </li>
                           <li>
-                            {tx("Ajouter vos liens Zoom et replays autorisés.")}
+                            {tx("Ajouter vos liens de réunion et replays autorisés.")}
                           </li>
                           <li>
                             {tx(
@@ -2531,7 +2547,7 @@ export default function CampusApp() {
             <span>
               {tx("LessGooo Academy · Apprendre pour aller plus loin.")}
             </span>
-            <span>{tx("Zoom · DevOps · Kids")}</span>
+            <span>{tx("Live · DevOps · Kids")}</span>
           </footer>
         </main>
       </SidebarInset>
@@ -2668,13 +2684,13 @@ export default function CampusApp() {
                   rel="noreferrer"
                 >
                   <Video size={18} />
-                  {tx("Rejoindre Zoom")}
+                  {tx("Rejoindre le cours")}
                 </a>
               ) : (
                 <div className="notice">
                   <Video size={21} />
                   <p>
-                    {tx("Le lien Zoom n’a pas encore été renseigné.")}
+                    {tx("Le lien de réunion n’a pas encore été renseigné.")}
                     {tx(
                       teacher
                         ? " Ajoutez votre lien participant dans Modifier le cours."
@@ -2693,7 +2709,7 @@ export default function CampusApp() {
                 <p className="info-line">
                   {tx(
                     persona === "parent"
-                      ? "Présence de Maya"
+                      ? "Présence de votre enfant"
                       : "Votre présence",
                   )}
                   {tx(" ")}
@@ -2726,7 +2742,7 @@ export default function CampusApp() {
                   <h3>{tx("Présences")}</h3>
                   <p className="footnote">
                     {tx(
-                      "Rejoindre Zoom ne marque pas automatiquement présent.",
+                      "Rejoindre le cours ne marque pas automatiquement présent.",
                     )}
                   </p>
                   {c.students

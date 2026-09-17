@@ -69,6 +69,9 @@ export class WorkspaceStore {
       }
     }
     // Abandoned partial uploads expire; completed files are never removed here.
+    const teacherProfile = this.items<Profile>("profile", "teacher")[0];
+    if (teacherProfile?.name === "Eddy")
+      this.put("profile", "teacher", { ...teacherProfile, name: "Carles" });
     this.db
       .prepare("DELETE FROM media WHERE complete=0 AND created < ?")
       .run(new Date(Date.now() - 86400000).toISOString());

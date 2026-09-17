@@ -104,10 +104,10 @@ export const personas: {
   name: string;
   student?: string;
 }[] = [
-  { value: "teacher", label: "Formateur", name: "Eddy" },
-  { value: "adult", label: "Élève DevOps", name: "Alex", student: "alex" },
-  { value: "parent", label: "Parent", name: "Camille" },
-  { value: "child", label: "Élève Kids", name: "Maya", student: "maya" },
+  { value: "teacher", label: "Formateur", name: "Carles" },
+  { value: "adult", label: "Élève DevOps", name: "DevOps learner", student: "alex" },
+  { value: "parent", label: "Parent", name: "Parent" },
+  { value: "child", label: "Élève Kids", name: "Young learner", student: "maya" },
 ];
 export const trackLabel = (t: string) =>
   t === "kids" ? "LessGooo Kids" : "DevOps & Cloud";

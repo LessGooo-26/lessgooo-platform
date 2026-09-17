@@ -25,6 +25,28 @@ export class CampusStore {
     const current = this.read();
     // Normalize identifiers from the first local draft, retaining every submission.
     let normalized = false;
+    const oldDemoNames: Record<string, string> = {
+      alex: "Alex Martin",
+      samira: "Samira Diallo",
+      lucas: "Lucas Bernard",
+      maya: "Maya Martin",
+      noah: "Noah Wilson",
+      ines: "Inès Mboa",
+    };
+    const oldParents = ["Camille Martin", "Jordan Wilson", "Ariane Mboa"];
+    for (const student of current.state.students) {
+      const replacement = seedCampus().students.find(
+        (s) => s.id === student.id,
+      );
+      if (replacement && student.name === oldDemoNames[student.id]) {
+        student.name = replacement.name;
+        normalized = true;
+      }
+      if (replacement && oldParents.includes(student.parent)) {
+        student.parent = replacement.parent;
+        normalized = true;
+      }
+    }
     for (const old of [...current.state.lessons]) {
       if (!old.id.startsWith("kids-kids-")) continue;
       const id = old.id.replace("kids-kids-", "kids-");

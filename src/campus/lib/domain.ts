@@ -29,6 +29,13 @@ export function safeUrl(value: string, zoom = false) {
     throw new DomainError("Utilisez une adresse HTTPS.");
   if (
     zoom &&
+    u.hostname === "meet.google.com" &&
+    /^\/[a-z]{3}-[a-z]{4}-[a-z]{3}\/?$/.test(u.pathname) &&
+    !u.port
+  )
+    return u.toString();
+  if (
+    zoom &&
     !(
       u.hostname === "zoom.us" ||
       u.hostname.endsWith(".zoom.us") ||
@@ -36,7 +43,7 @@ export function safeUrl(value: string, zoom = false) {
       u.hostname.endsWith(".zoom.com")
     )
   )
-    throw new DomainError("Utilisez le lien participant Zoom.");
+    throw new DomainError("Use a Google Meet or Zoom participant link.");
   if (zoom && u.pathname.startsWith("/s/"))
     throw new DomainError("Un lien hôte Zoom ne doit pas être partagé.");
   return u.toString();

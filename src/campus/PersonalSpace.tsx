@@ -1,3 +1,5 @@
+import { LinkImport, VideoTranscript } from "./StudioPanel";
+import { transcriptUrl } from "./lib/studio";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -236,6 +238,7 @@ export function MediaLibrary({ persona, data, reload }: Props) {
   return (
     <div className="personal-stack">
       <UploadBox persona={persona} reload={reload} />
+      <LinkImport persona={persona} reload={reload} />
       <div className="media-filters">
         <input
           aria-label={t("Find a file", "Chercher un fichier")}
@@ -292,18 +295,29 @@ function MediaCard({
 }) {
   const { t } = useLanguage();
   const [playbackError, setPlaybackError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [captionsReady, setCaptionsReady] = useState(false);
   return (
     <article className="media-card">
       <div className="media-preview">
         {file.preview.startsWith("video/") ? (
           <video
+            ref={videoRef}
             controls
             preload="metadata"
             playsInline
             aria-label={file.name}
             src={mediaUrl(file.id, persona, true)}
             onError={() => setPlaybackError(true)}
-          />
+          >
+            {captionsReady && (
+              <track
+                kind="captions"
+                src={transcriptUrl(file.id, persona, "vtt")}
+                label={t("Automatic captions", "Sous-titres automatiques")}
+              />
+            )}
+          </video>
         ) : file.preview.startsWith("image/") ? (
           <a
             href={mediaUrl(file.id, persona, true)}
@@ -343,6 +357,19 @@ function MediaCard({
           <Download size={17} />
           {t("Download", "Télécharger")}
         </a>
+        {file.preview.startsWith("video/") && (
+          <VideoTranscript
+            id={file.id}
+            persona={persona}
+            onReady={setCaptionsReady}
+            seek={(time) => {
+              if (videoRef.current) {
+                videoRef.current.currentTime = time;
+                videoRef.current.focus();
+              }
+            }}
+          />
+        )}
         {children}
       </div>
     </article>
@@ -902,8 +929,8 @@ export function ParentHome({
             "sessions",
             t("Classes", "Les cours"),
             t(
-              "See class times and Zoom links",
-              "Voir les horaires et liens Zoom",
+              "See class times and meeting links",
+              "Voir les horaires et liens de réunion",
             ),
             "orange",
           ],

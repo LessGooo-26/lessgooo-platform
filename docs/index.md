@@ -4,6 +4,7 @@ This directory is the authoritative product and organizational knowledge base
 for the LESSGOOO application.
 
 Campus expansion approved on 2026-09-16: [learning, career and integrations](product/campus-expansion.md).
+Studio and service intake requested on 2026-09-17: [scope](product/campus-studio.md) and [operation](engineering/campus-studio.md).
 
 ## Purpose
 

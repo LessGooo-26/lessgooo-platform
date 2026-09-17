@@ -34,6 +34,11 @@ A service shown publicly must have:
 - description;
 - call to action.
 
+CONFIRMED, owner request 2026-09-17: a service enquiry page and paid private
+consultations. The page offers requests for the documented training, children's
+technology, workshops, interview and application services. The consultation
+price, currency and duration are still UNKNOWN. See [studio scope](../product/campus-studio.md).
+
 Optional fields:
 - price;
 - schedule;
