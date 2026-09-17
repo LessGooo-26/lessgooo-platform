@@ -2,10 +2,16 @@ import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { DomainError, safeUrl, studentFor } from "../src/campus/lib/domain";
 import type { Persona } from "../src/campus/lib/model";
+import { personas } from "../src/campus/lib/model";
+import { previewType } from "./media-stream";
 import {
   applicationSchema,
   careerSchema,
   noteSchema,
+  gallerySchema,
+  profileSchema,
+  type Gallery,
+  type Profile,
   type CareerInterest,
   type JobApplication,
   type Media,
@@ -38,6 +44,30 @@ export class WorkspaceStore {
       CREATE TABLE IF NOT EXISTS sync_jobs(id TEXT PRIMARY KEY, label TEXT NOT NULL, status TEXT NOT NULL, error TEXT NOT NULL, url TEXT NOT NULL, updated TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS integration_config(id TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS checkout(reference TEXT PRIMARY KEY, amount INTEGER NOT NULL, currency TEXT NOT NULL, email TEXT NOT NULL, provider TEXT NOT NULL, status TEXT NOT NULL, url TEXT NOT NULL, description TEXT NOT NULL);`);
+    const columns = this.db
+      .prepare("PRAGMA table_info(media)")
+      .all()
+      .map((c) => c.name);
+    if (!columns.includes("gallery"))
+      this.db.exec(
+        "ALTER TABLE media ADD COLUMN gallery TEXT NOT NULL DEFAULT ''",
+      );
+    if (!columns.includes("preview")) {
+      this.db.exec(
+        "ALTER TABLE media ADD COLUMN preview TEXT NOT NULL DEFAULT ''",
+      );
+      for (const file of this.db
+        .prepare("SELECT id FROM media WHERE complete=1")
+        .all()) {
+        const first = this.db
+          .prepare("SELECT bytes FROM media_chunks WHERE media=? AND offset=0")
+          .get(file.id);
+        if (first)
+          this.db
+            .prepare("UPDATE media SET preview=? WHERE id=?")
+            .run(previewType(first.bytes as Uint8Array), file.id);
+      }
+    }
     // Abandoned partial uploads expire; completed files are never removed here.
     this.db
       .prepare("DELETE FROM media WHERE complete=0 AND created < ?")
@@ -85,12 +115,78 @@ export class WorkspaceStore {
           ? this.items<JobApplication>("application", owner)
           : [],
       media: this.mediaList(p),
+      galleries: this.galleries(p),
+      profile: this.items<Profile>("profile", owner)[0] || {
+        id: `profile:${owner}`,
+        owner,
+        name: personas.find((x) => x.value === p)!.name,
+        email: "",
+        phone: "",
+        bio: "",
+        avatar: "",
+      },
       maxUploadBytes,
     };
   }
   action(p: Persona, action: string, input: unknown) {
     const owner = this.owner(p);
-    if (action === "note") {
+    if (action === "profile") {
+      const d = parse(profileSchema, input);
+      if (d.avatar) {
+        const file = this.media(p, d.avatar);
+        if (
+          file.owner !== owner ||
+          !file.preview.startsWith("image/") ||
+          file.size > 8 * 1024 * 1024
+        )
+          throw new DomainError(
+            "Choose your own JPG, PNG, GIF or WebP photo, up to 8 MB.",
+          );
+      }
+      this.put("profile", owner, { ...d, id: `profile:${owner}`, owner });
+    } else if (action === "gallery") {
+      const d = parse(gallerySchema, input);
+      if (
+        d.id &&
+        !this.items<Gallery>("gallery", owner).some((g) => g.id === d.id)
+      )
+        throw new DomainError("Gallery not found.", 404);
+      const gallery = {
+        ...d,
+        id: d.id || crypto.randomUUID(),
+        owner,
+        shared: p === "teacher" && d.shared,
+      };
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.put("gallery", owner, gallery);
+        this.db
+          .prepare("UPDATE media SET shared=? WHERE gallery=? AND owner=?")
+          .run(gallery.shared ? 1 : 0, gallery.id, owner);
+        this.db.exec("COMMIT");
+      } catch (e) {
+        this.db.exec("ROLLBACK");
+        throw e;
+      }
+    } else if (action === "mediaGallery") {
+      const d = parse(
+        z.object({ id: z.string(), gallery: z.string().max(100) }),
+        input,
+      );
+      const file = this.media(p, d.id, true);
+      if (
+        !file.complete ||
+        !file.preview.startsWith("image/") ||
+        file.submission
+      )
+        throw new DomainError(
+          "Only completed photos can be moved to a gallery.",
+        );
+      const gallery = d.gallery ? this.ownGallery(p, d.gallery) : undefined;
+      this.db
+        .prepare("UPDATE media SET gallery=?,shared=? WHERE id=?")
+        .run(d.gallery, gallery?.shared ? 1 : 0, d.id);
+    } else if (action === "note") {
       const d = parse(noteSchema, input);
       const old = d.id
         ? this.items<Note>("note", owner).find((n) => n.id === d.id)
@@ -162,33 +258,52 @@ export class WorkspaceStore {
     return this.snapshot(p);
   }
   mediaList(p: Persona): Media[] {
-    const owner = p === "parent" ? "maya" : this.owner(p);
+    const owner = this.owner(p);
     return this.db
       .prepare(
-        "SELECT * FROM media WHERE complete=1 AND (owner=? OR shared=1 OR ?=1) ORDER BY created DESC",
+        "SELECT * FROM media WHERE complete=1 AND (owner=? OR owner=? OR shared=1 OR ?=1) ORDER BY created DESC",
       )
-      .all(owner, p === "teacher" ? 1 : 0) as unknown as Media[];
+      .all(
+        owner,
+        p === "parent" ? "maya" : owner,
+        p === "teacher" ? 1 : 0,
+      ) as unknown as Media[];
+  }
+  galleries(p: Persona) {
+    return this.items<Gallery>("gallery").filter(
+      (g) =>
+        g.owner === this.owner(p) ||
+        g.shared ||
+        p === "teacher" ||
+        (p === "parent" && g.owner === "maya"),
+    );
+  }
+  ownGallery(p: Persona, id: string) {
+    const g = this.items<Gallery>("gallery", this.owner(p)).find(
+      (g) => g.id === id,
+    );
+    if (!g) throw new DomainError("Gallery not found.", 404);
+    return g;
   }
   media(p: Persona, id: string, writing = false): Media {
     const m = this.db
       .prepare("SELECT * FROM media WHERE id=?")
       .get(id) as unknown as Media | undefined;
-    const owner = p === "parent" && !writing ? "maya" : this.owner(p);
+    const owner = this.owner(p);
     if (
       !m ||
       (writing
-        ? m.owner !== owner || p === "parent"
-        : !m.complete || (m.owner !== owner && !m.shared && p !== "teacher"))
+        ? m.owner !== owner
+        : !m.complete ||
+          (m.owner !== owner &&
+            !(p === "parent" && m.owner === "maya") &&
+            !m.shared &&
+            p !== "teacher"))
     )
       throw new DomainError("Fichier inaccessible.", 404);
     return m;
   }
   start(p: Persona, input: unknown) {
-    if (p === "parent")
-      throw new DomainError(
-        "Utilisez la vue élève pour remettre un fichier.",
-        403,
-      );
     const d = parse(
       z.object({
         name: z.string().trim().min(1).max(255),
@@ -196,10 +311,14 @@ export class WorkspaceStore {
         size: z.number().int().min(1).max(maxUploadBytes),
         submission: z.string().max(100).default(""),
         shared: z.boolean().default(false),
+        gallery: z.string().max(100).default(""),
       }),
       input,
     );
     if (d.submission) this.checkSubmission(p, d.submission);
+    const gallery = d.gallery ? this.ownGallery(p, d.gallery) : undefined;
+    if (gallery && d.submission)
+      throw new DomainError("Homework files cannot be added to galleries.");
     const count = Number(
       this.db
         .prepare("SELECT count(*) AS n FROM media WHERE owner=? AND complete=0")
@@ -213,7 +332,7 @@ export class WorkspaceStore {
     const id = crypto.randomUUID();
     this.db
       .prepare(
-        "INSERT INTO media(id,owner,name,type,size,created,submission,shared) VALUES(?,?,?,?,?,?,?,?)",
+        "INSERT INTO media(id,owner,name,type,size,created,submission,shared,gallery) VALUES(?,?,?,?,?,?,?,?,?)",
       )
       .run(
         id,
@@ -227,7 +346,8 @@ export class WorkspaceStore {
         d.size,
         new Date().toISOString(),
         d.submission,
-        p === "teacher" && d.shared ? 1 : 0,
+        gallery ? Number(gallery.shared) : p === "teacher" && d.shared ? 1 : 0,
+        d.gallery,
       );
     return { id, chunkBytes };
   }
@@ -271,6 +391,12 @@ export class WorkspaceStore {
     if (m.complete) return m;
     if (m.received !== m.size)
       throw new DomainError("Transfert incomplet.", 409);
+    const first = this.db
+      .prepare("SELECT bytes FROM media_chunks WHERE media=? AND offset=0")
+      .get(id);
+    const preview = first ? previewType(first.bytes as Uint8Array) : "";
+    if (m.gallery && !preview.startsWith("image/"))
+      throw new DomainError("Galleries accept JPG, PNG, GIF and WebP photos.");
     this.db.exec("BEGIN IMMEDIATE");
     try {
       if (m.submission) {
@@ -282,14 +408,42 @@ export class WorkspaceStore {
         };
         this.campus.save(current.state, current.version);
       }
-      this.db.prepare("UPDATE media SET complete=1 WHERE id=?").run(id);
+      this.db
+        .prepare("UPDATE media SET complete=1,preview=?,shared=? WHERE id=?")
+        .run(
+          preview,
+          m.gallery ? Number(this.ownGallery(p, m.gallery).shared) : m.shared,
+          id,
+        );
       if (m.submission) this.queue(m.submission, `Devoir · ${m.name}`);
       this.db.exec("COMMIT");
     } catch (e) {
       this.db.exec("ROLLBACK");
       throw e;
     }
-    return { ...m, complete: 1 };
+    return { ...m, preview, complete: 1 };
+  }
+  *byteRange(id: string, start: number, end: number) {
+    const rows = this.db
+      .prepare(
+        "SELECT offset,bytes FROM media_chunks WHERE media=? AND offset<=? AND offset+length(bytes)>? ORDER BY offset",
+      )
+      .iterate(id, end, start);
+    for (const row of rows) {
+      const offset = Number(row.offset),
+        bytes = row.bytes as Uint8Array;
+      yield bytes.subarray(
+        Math.max(0, start - offset),
+        Math.min(bytes.length, end - offset + 1),
+      );
+    }
+  }
+  cancel(p: Persona, id: string) {
+    const file = this.media(p, id, true);
+    if (file.complete)
+      throw new DomainError("Completed files cannot be cancelled.", 409);
+    this.db.prepare("DELETE FROM media WHERE id=?").run(id);
+    return { cancelled: true };
   }
   bytes(id: string) {
     return this.db

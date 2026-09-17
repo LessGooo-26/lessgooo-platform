@@ -8,6 +8,7 @@ import { WorkspaceStore, chunkBytes } from "./workspace-store";
 import { Integrations } from "./integrations";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { serveMedia } from "./media-stream";
 
 const maxBody = 6 * 1024 * 1024;
 async function body(req: IncomingMessage, limit: number) {
@@ -162,7 +163,21 @@ export function createCampusServer(
         throw new DomainError("Méthode refusée.", 405);
       }
       if (url.pathname.startsWith("/api/media")) {
-        const p = personaFor(req),
+        // Native video/image/download requests cannot set a custom header.
+        // This is the same explicit persona selector as the local demo API,
+        // not authentication. Mutations never accept the query selector.
+        const readMedia =
+          url.pathname === "/api/media" &&
+          ["GET", "HEAD"].includes(req.method || "");
+        const selected = readMedia ? url.searchParams.get("persona") : null;
+        if (
+          selected &&
+          (!["teacher", "adult", "parent", "child"].includes(selected) ||
+            (req.headers["x-campus-persona"] &&
+              req.headers["x-campus-persona"] !== selected))
+        )
+          throw new DomainError("Vue invalide.", 403);
+        const p = (selected as Persona) || personaFor(req),
           id = url.searchParams.get("id") || "";
         if (url.pathname === "/api/media/start" && req.method === "POST")
           return json(workspace.start(p, await input()));
@@ -180,20 +195,16 @@ export function createCampusServer(
           sync();
           return json(result);
         }
-        if (url.pathname === "/api/media" && req.method === "GET") {
+        if (url.pathname === "/api/media/cancel" && req.method === "POST")
+          return json(workspace.cancel(p, id));
+        if (readMedia) {
           const file = workspace.media(p, id);
-          res.writeHead(200, {
-            "Content-Type": "application/octet-stream",
-            "Content-Length": file.size,
-            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
-          });
-          await pipeline(
-            Readable.from(
-              (function* () {
-                for (const row of workspace.bytes(id)) yield row.bytes;
-              })(),
-            ),
+          await serveMedia(
+            req,
             res,
+            workspace,
+            file,
+            url.searchParams.get("inline") === "1",
           );
           return;
         }

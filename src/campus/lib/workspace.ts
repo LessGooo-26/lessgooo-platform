@@ -57,6 +57,30 @@ export type Media = {
   created: string;
   submission: string;
   shared: number;
+  gallery: string;
+  preview: string;
+};
+export const gallerySchema = z.object({
+  id: z.string().max(100).optional(),
+  name: z.string().trim().min(1).max(100),
+  purpose: z.string().trim().max(500),
+  color: z.enum(["blue", "green", "yellow", "orange", "red", "navy"]),
+  shared: z.boolean().default(false),
+});
+export type Gallery = z.infer<typeof gallerySchema> & {
+  id: string;
+  owner: string;
+};
+export const profileSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  email: z.union([z.literal(""), z.string().email().max(254)]),
+  phone: z.string().trim().max(40),
+  bio: z.string().trim().max(500),
+  avatar: z.string().max(100),
+});
+export type Profile = z.infer<typeof profileSchema> & {
+  id: string;
+  owner: string;
 };
 export type SyncJob = {
   id: string;

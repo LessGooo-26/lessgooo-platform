@@ -60,3 +60,8 @@ Les personas, crédits, stages, horaires, montants et leçons du site Campus fou
 Statut : UNKNOWN pour l'activation réelle.
 
 Le 2026-09-16, le propriétaire a confirmé le service de préparation aux entretiens/candidatures et l'email lessgooo.ai26@gmail.com. Les prix, disponibilités, contrats et résultats attendus ne sont pas fixés. Notch Pay est proposé sur la base de ses tarifs publics, mais le marchand, son identité/KYC, son éligibilité et sa clé doivent être activés. Drive exige un client OAuth et le consentement du compte demandé. Les intégrations préparées ne constituent pas une preuve que ces connexions externes ont été activées.
+
+## CAMPUS-003 — AI account setup
+Status: UNKNOWN / pending configuration (2026-09-17).
+
+The owner requested AI assistance. No OpenAI API key is configured in the local environment. Secure account/project selection and key provisioning are pending. No connected AI assistant is claimed or simulated.

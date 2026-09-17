@@ -1,4 +1,4 @@
-"use client";
+import { tx, localeCode } from "./lib/language";
 import {
   useState,
   useEffect,
@@ -90,6 +90,10 @@ import {
   WorkspacePanel,
 } from "./WorkspacePanel";
 import "./workspace.css";
+import { ParentHome, ProfileButton } from "./PersonalSpace";
+import { useLanguage } from "./lib/language";
+import { LanguageSwitch } from "./LanguageSwitch";
+import { useProfile } from "./lib/use-profile";
 import { uploadMedia } from "./lib/workspace-api";
 import {
   personas,
@@ -110,6 +114,8 @@ const navItems = [
   ["explore", "Projets & ressources", Rocket],
   ["notebook", "Notes & présentations", FileText],
   ["library", "Vidéos & fichiers", Video],
+  ["galleries", "Galeries photo", Blocks],
+  ["profile", "Mon profil", Users],
   ["career", "Entretiens & carrière", GraduationCap],
   ["sessions", "Cours Zoom", CalendarDays],
   ["projects", "Travaux & corrections", FolderCheck],
@@ -173,7 +179,7 @@ const fieldHelp: Record<string, string> = {
     "Informations utiles au suivi, sans donnée personnelle inutile ni mot de passe.",
 };
 const money = (amount: number, currency: string) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(
+  new Intl.NumberFormat(localeCode(), { style: "currency", currency }).format(
     amount / (currency === "XAF" ? 1 : 100),
   );
 const statusText: Record<string, string> = {
@@ -220,13 +226,13 @@ function Choice({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} aria-label={label} className="choice">
+      <SelectTrigger id={id} aria-label={tx(label)} className="choice">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {options.map(([v, l]) => (
           <SelectItem key={v} value={v}>
-            {l}
+            {tx(l)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -240,14 +246,14 @@ function Badge({
   children: ReactNode;
   tone?: string;
 }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  return <span className={`badge ${tone}`}>{tx(children)}</span>;
 }
 function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="empty">
       <FolderCheck size={30} />
-      <h3>{title}</h3>
-      {children && <p>{children}</p>}
+      <h3>{tx(title)}</h3>
+      {children && <p>{tx(children)}</p>}
     </div>
   );
 }
@@ -285,7 +291,7 @@ function SideNav({
               }}
             >
               <Icon />
-              <span>{label}</span>
+              <span>{tx(label)}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
@@ -339,10 +345,12 @@ function Editor({
       <DialogContent className="editor-dialog">
         <DialogHeader>
           <BrandLogo className="dialog-logo" />
-          <DialogTitle>{config.title}</DialogTitle>
+          <DialogTitle>{tx(config.title)}</DialogTitle>
           <DialogDescription>
-            {config.description ||
-              "Complétez les informations puis enregistrez."}
+            {tx(
+              config.description ||
+                "Complétez les informations puis enregistrez.",
+            )}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -356,18 +364,20 @@ function Editor({
           {config.fields.map((f) => (
             <label key={f.key} htmlFor={`field-${f.key}`} className="field">
               <span>
-                {f.label}
-                {f.required ? " *" : ""}
-                <HelpTip label={`Aide : ${f.label}`}>
-                  {f.hint ||
-                    fieldHelp[f.key] ||
-                    `Renseignez ${f.label.toLowerCase()}. Cette valeur sera enregistrée dans le campus local.`}
+                {tx(f.label)}
+                {tx(f.required ? " *" : "")}
+                <HelpTip label={tx(`Aide : ${f.label}`)}>
+                  {tx(
+                    f.hint ||
+                      fieldHelp[f.key] ||
+                      `Renseignez ${f.label.toLowerCase()}. Cette valeur sera enregistrée dans le campus local.`,
+                  )}
                 </HelpTip>
               </span>
               {f.options ? (
                 <Choice
                   id={`field-${f.key}`}
-                  label={f.label}
+                  label={tx(f.label)}
                   value={String(v[f.key] ?? "")}
                   onChange={(value) => setV({ ...v, [f.key]: value })}
                   options={f.options}
@@ -400,13 +410,14 @@ function Editor({
                     })
                   }
                 />
-              )}{" "}
-              {f.hint && <small>{f.hint}</small>}
+              )}
+              {tx(" ")}
+              {f.hint && <small>{tx(f.hint)}</small>}
             </label>
           ))}
           <div className="form-actions">
             <Button type="button" variant="outline" onClick={onClose}>
-              Annuler
+              {tx("Annuler")}
             </Button>
             <Button disabled={busy} type="submit">
               {busy ? (
@@ -414,7 +425,7 @@ function Editor({
               ) : (
                 <Check size={16} />
               )}
-              Enregistrer
+              {tx("Enregistrer")}
             </Button>
           </div>
         </form>
@@ -423,8 +434,21 @@ function Editor({
   );
 }
 export default function CampusApp() {
+  const { locale } = useLanguage();
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
-    [persona, setPersona] = useState<Persona>("teacher"),
+    [persona, setPersona] = useState<Persona>(() => {
+      try {
+        const saved = localStorage.getItem("lessgooo-persona");
+        return personas.some((p) => p.value === saved)
+          ? (saved as Persona)
+          : "teacher";
+      } catch {
+        return "teacher";
+      }
+    }),
     [page, setPage] = useState(() =>
       navItems.some(([id]) => id === location.hash.slice(1))
         ? location.hash.slice(1)
@@ -441,6 +465,7 @@ export default function CampusApp() {
     [session, setSession] = useState<Session | null>(null),
     [submission, setSubmission] = useState<Submission | null>(null),
     [stage, setStage] = useState<Stage | null>(null);
+  const profile = useProfile(persona);
   const snapRef = useRef(snapshot);
   const pageRef = useRef(page);
   pageRef.current = page;
@@ -513,10 +538,12 @@ export default function CampusApp() {
         throw new Error(d.error);
       }
       setSnapshot(d);
-      toast.success("Modification enregistrée");
+      toast.success(tx("Modification enregistrée"));
       return true;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible d’enregistrer.");
+      toast.error(
+        tx(e instanceof Error ? e.message : "Impossible d’enregistrer."),
+      );
       return false;
     } finally {
       setBusy(false);
@@ -545,8 +572,14 @@ export default function CampusApp() {
       return;
     personaRef.current = p;
     setPersona(p);
+    try {
+      localStorage.setItem("lessgooo-persona", p);
+    } catch {
+      /* In-memory view still works. */
+    }
     setSnapshot(null);
     setPage("dashboard");
+    history.replaceState(null, "", "#dashboard");
     setLesson(null);
     setSession(null);
     setSubmission(null);
@@ -638,10 +671,11 @@ export default function CampusApp() {
   }, []);
   const c = snapshot?.state,
     teacher = persona === "teacher",
-    user = personas.find((x) => x.value === persona)!,
+    identity = personas.find((x) => x.value === persona)!,
+    user = { ...identity, name: profile?.name || identity.name },
     studentId = user.student || (persona === "parent" ? "maya" : undefined);
   const date = (value: string, short = false) =>
-    new Intl.DateTimeFormat("fr-FR", {
+    new Intl.DateTimeFormat(localeCode(), {
       timeZone: zone,
       ...(short
         ? { day: "numeric", month: "short" }
@@ -654,7 +688,7 @@ export default function CampusApp() {
           }),
     } as Intl.DateTimeFormatOptions).format(new Date(value));
   const hour = (value: string) =>
-    new Intl.DateTimeFormat("fr-FR", {
+    new Intl.DateTimeFormat(localeCode(), {
       timeZone: zone,
       hour: "2-digit",
       minute: "2-digit",
@@ -931,9 +965,9 @@ export default function CampusApp() {
       setSubmission(
         d.state.submissions.find((s: Submission) => s.id === sub.id) || null,
       );
-      toast.success("Fichier enregistré");
+      toast.success(tx("Fichier enregistré"));
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(tx((e as Error).message));
     } finally {
       setBusy(false);
     }
@@ -943,7 +977,7 @@ export default function CampusApp() {
       headers: { "x-campus-persona": persona },
     });
     if (!r.ok) {
-      toast.error("Fichier indisponible");
+      toast.error(tx("Fichier indisponible"));
       return;
     }
     download(await r.blob(), sub.file!.name);
@@ -989,34 +1023,36 @@ export default function CampusApp() {
     c?.lessons.filter(
       (l) =>
         (filter === "all" || l.track === filter) &&
-        (l.title + " " + l.module).toLowerCase().includes(query.toLowerCase()),
+        (tx(l.title) + " " + tx(l.module))
+          .toLowerCase()
+          .includes(query.toLowerCase()),
     ) || [];
   const sectionTitle = navItems.find((n) => n[0] === page)?.[1] || "Campus";
   const actionButton =
     page === "courses" && teacher ? (
       <Button onClick={() => openLesson()}>
         <Plus />
-        Créer une leçon
+        {tx("Créer une leçon")}
       </Button>
     ) : page === "sessions" && teacher ? (
       <Button onClick={() => openSession()}>
         <Plus />
-        Planifier un cours
+        {tx("Planifier un cours")}
       </Button>
     ) : page === "students" && teacher ? (
       <Button onClick={() => openStudent()}>
         <Plus />
-        Ajouter un élève
+        {tx("Ajouter un élève")}
       </Button>
     ) : page === "payments" && teacher ? (
       <Button onClick={addPayment}>
         <Plus />
-        Enregistrer un paiement
+        {tx("Enregistrer un paiement")}
       </Button>
     ) : page === "stages" && teacher ? (
       <Button onClick={() => openStage()}>
         <Plus />
-        Nouveau dossier
+        {tx("Nouveau dossier")}
       </Button>
     ) : page === "coaching" && teacher ? (
       <Button
@@ -1043,12 +1079,12 @@ export default function CampusApp() {
         }
       >
         <Plus />
-        Ajouter un créneau
+        {tx("Ajouter un créneau")}
       </Button>
     ) : page === "help" && !teacher ? (
       <Button onClick={addHelp}>
         <Plus />
-        Poser une question
+        {tx("Poser une question")}
       </Button>
     ) : null;
   return (
@@ -1056,45 +1092,49 @@ export default function CampusApp() {
       style={{ "--sidebar-width": "254px" } as React.CSSProperties}
     >
       <a className="skip-link" href="#campus-main">
-        Aller au contenu
+        {tx("Aller au contenu")}
       </a>
       <Toaster richColors position="bottom-right" />
       <Sidebar className="campus-sidebar">
         <SidebarHeader className="brand">
           <BrandLogo />
-          <span>CAMPUS · APPRENDRE & PRATIQUER</span>
+          <span>{tx("CAMPUS · APPRENDRE & PRATIQUER")}</span>
         </SidebarHeader>
         <SidebarContent className="side-content">
-          <div className="workspace-label">MON ESPACE</div>
+          <div className="workspace-label">{tx("MON ESPACE")}</div>
           <SideNav page={page} go={go} persona={persona} />
           <div className="side-note">
             <Cloud size={23} />
-            <strong>Le savoir ouvre des portes.</strong>
+            <strong>{tx("Le savoir ouvre des portes.")}</strong>
             <p>
-              Un cours. Un projet.
+              {tx("Un cours. Un projet.")}
               <br />
-              Une compétence de plus.
+              {tx("Une compétence de plus.")}
             </p>
           </div>
         </SidebarContent>
         <SidebarFooter className="side-footer">
-          <div className="avatar">{user.name.slice(0, 1)}</div>
+          <div className="avatar">{tx(user.name.slice(0, 1))}</div>
           <div>
             <strong>{user.name}</strong>
-            <small>{user.label} · Démonstration</small>
+            <small>
+              {tx(user.label)}
+              {tx(" · Démonstration")}
+            </small>
           </div>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="topbar">
           <div className="breadcrumb">
-            <SidebarTrigger aria-label="Ouvrir le menu" />
-            <span>Campus</span>
+            <SidebarTrigger aria-label={tx("Ouvrir le menu")} />
+            <span>{tx("Campus")}</span>
             <ChevronRight size={14} />
-            <strong>{sectionTitle}</strong>
+            <strong>{tx(sectionTitle)}</strong>
           </div>
           <BrandLogo className="top-logo" />
           <div className="top-controls">
+            <LanguageSwitch />
             <Choice
               value={zone}
               onChange={(v) => {
@@ -1102,91 +1142,106 @@ export default function CampusApp() {
                 localStorage.setItem("lessgooo-timezone", v);
               }}
               options={zones}
-              label="Fuseau horaire"
+              label={tx("Fuseau horaire")}
             />
-            <HelpTip label="Aide : fuseau horaire">
-              Ce réglage change l’affichage des horaires, sans déplacer les
-              séances enregistrées.
+            <HelpTip label={tx("Aide : fuseau horaire")}>
+              {tx(
+                "Ce réglage change l’affichage des horaires, sans déplacer les séances enregistrées.",
+              )}
             </HelpTip>
-            <div className="top-avatar">{user.name[0]}</div>
+            <ProfileButton
+              key={persona}
+              persona={persona}
+              onClick={() => go("profile")}
+            />
           </div>
         </header>
         <div className="demo-bar">
           <div>
-            <span className="demo-pill">DÉMO LOCALE</span>
-            <span>Données fictives · Sauvegarde sur cet ordinateur</span>
+            <span className="demo-pill">{tx("DÉMO LOCALE")}</span>
+            <span>
+              {tx("Données fictives · Sauvegarde sur cet ordinateur")}
+            </span>
           </div>
           <Choice
             value={persona}
             onChange={(v) => switchPersona(v as Persona)}
-            options={personas.map((p) => [p.value, "Vue " + p.label])}
-            label="Choisir une vue de test"
+            options={personas.map((p) => [p.value, tx("Vue ") + tx(p.label)])}
+            label={tx("Choisir une vue de test")}
           />
-          <HelpTip label="Aide : vues de démonstration">
-            Teste le parcours du formateur, de l’adulte, du parent ou de
-            l’enfant. Ces vues locales ne remplacent pas une connexion
-            individuelle sécurisée.
+          <HelpTip label={tx("Aide : vues de démonstration")}>
+            {tx(
+              "Teste le parcours du formateur, de l’adulte, du parent ou de l’enfant. Ces vues locales ne remplacent pas une connexion individuelle sécurisée.",
+            )}
           </HelpTip>
         </div>
         <main id="campus-main" className="content">
           <div className="page-head">
             <div>
-              <div className="eyebrow">LESSGOOO ACADEMY</div>
+              <div className="eyebrow">{tx("LESSGOOO ACADEMY")}</div>
               <h1>
-                {page === "dashboard" ? `Bonjour ${user.name}` : sectionTitle}
+                {page === "dashboard"
+                  ? `${locale === "en" ? "Hello" : "Bonjour"} ${user.name}`
+                  : tx(sectionTitle)}
                 {page === "dashboard" && (
-                  <span className="greeting-dot">.</span>
+                  <span className="greeting-dot">{tx(".")}</span>
                 )}
               </h1>
               <p>
-                {page === "dashboard"
-                  ? teacher
-                    ? "Une vue claire sur les cours, les élèves et leurs prochaines étapes."
-                    : persona === "parent"
-                      ? "Les petits progrès de Maya font les grandes réussites."
-                      : "Prêt à apprendre quelque chose et à le mettre en pratique ?"
-                  : (
-                      {
-                        courses:
-                          "Comprendre d’abord. Pratiquer ensuite. Expliquer pour maîtriser.",
-                        sessions:
-                          "Tous vos cours en direct sur Zoom, à votre heure locale.",
-                        projects:
-                          "Des réalisations concrètes et des retours pour avancer.",
-                        students:
-                          "Chaque élève, son parcours et sa progression.",
-                        coaching:
-                          "Un objectif précis. Une séance rien que pour vous.",
-                        stages:
-                          "De la préparation au bilan : suivez vos dossiers de démonstration.",
-                        payments:
-                          "Un registre clair, avec une vérification humaine.",
-                        help: "Un blocage ? La discussion continue entre les cours.",
-                        settings:
-                          "Les repères pour tester et prendre en main votre campus.",
-                        explore:
-                          "Des défis concrets, des dépôts de référence et des vidéos pour passer à l’action.",
-                        notebook:
-                          "Un endroit pour tes idées, tes notes de cours et tes présentations.",
-                        library:
-                          "Tes vidéos, fichiers et ressources, réunis au même endroit.",
-                        career:
-                          "Transforme tes projets en réponses convaincantes et organise tes candidatures.",
-                        integrations:
-                          "Relie les devoirs à Google Drive et prépare les règlements en ligne.",
-                      } as Record<string, string>
-                    )[page]}
+                {tx(
+                  page === "dashboard"
+                    ? teacher
+                      ? "Une vue claire sur les cours, les élèves et leurs prochaines étapes."
+                      : persona === "parent"
+                        ? "Les petits progrès de Maya font les grandes réussites."
+                        : "Prêt à apprendre quelque chose et à le mettre en pratique ?"
+                    : (
+                        {
+                          courses:
+                            "Comprendre d’abord. Pratiquer ensuite. Expliquer pour maîtriser.",
+                          sessions:
+                            "Tous vos cours en direct sur Zoom, à votre heure locale.",
+                          projects:
+                            "Des réalisations concrètes et des retours pour avancer.",
+                          students:
+                            "Chaque élève, son parcours et sa progression.",
+                          coaching:
+                            "Un objectif précis. Une séance rien que pour vous.",
+                          stages:
+                            "De la préparation au bilan : suivez vos dossiers de démonstration.",
+                          payments:
+                            "Un registre clair, avec une vérification humaine.",
+                          help: "Un blocage ? La discussion continue entre les cours.",
+                          settings:
+                            "Les repères pour tester et prendre en main votre campus.",
+                          explore:
+                            "Des défis concrets, des dépôts de référence et des vidéos pour passer à l’action.",
+                          notebook:
+                            "Un endroit pour tes idées, tes notes de cours et tes présentations.",
+                          library:
+                            "Tes vidéos, fichiers et ressources, réunis au même endroit.",
+                          galleries:
+                            "Des galeries pour vos cours, vos projets et vos souvenirs.",
+                          profile:
+                            "Votre photo et vos informations, faciles à modifier.",
+                          career:
+                            "Transforme tes projets en réponses convaincantes et organise tes candidatures.",
+                          integrations:
+                            "Relie les devoirs à Google Drive et prépare les règlements en ligne.",
+                        } as Record<string, string>
+                      )[page],
+                )}
               </p>
             </div>
-            {actionButton}
+            {tx(actionButton)}
           </div>
           {error ? (
             <div className="error-box">
-              <h2>Le campus n’a pas pu être chargé</h2>
-              <p>{error}</p>
-              <Button onClick={() => reload()}>Réessayer</Button>
+              <h2>{tx("Le campus n’a pas pu être chargé")}</h2>
+              <p>{tx(error)}</p>
+              <Button onClick={() => reload()}>{tx("Réessayer")}</Button>
               <a href={`${import.meta.env.BASE_URL}index.html`}>
-                Ouvrir le site public
+                {tx("Ouvrir le site public")}
               </a>
             </div>
           ) : loading && !c ? (
@@ -1200,7 +1255,11 @@ export default function CampusApp() {
               <>
                 {page === "dashboard" && (
                   <>
-                    <Launchpad c={c} go={go} />
+                    {persona === "parent" ? (
+                      <ParentHome c={c} go={go} />
+                    ) : (
+                      <Launchpad c={c} go={go} />
+                    )}
                     <HomeworkMap c={c} openLesson={setLesson} />
                     <div className="stats-grid">
                       {[
@@ -1261,9 +1320,9 @@ export default function CampusApp() {
                         return (
                           <div className="stat" key={label}>
                             <div>
-                              <span>{label}</span>
-                              <strong>{value}</strong>
-                              <small>{note}</small>
+                              <span>{tx(label)}</span>
+                              <strong>{tx(value)}</strong>
+                              <small>{tx(note)}</small>
                             </div>
                             <span className={`stat-icon ${tone}`}>
                               <Icon size={21} />
@@ -1278,49 +1337,58 @@ export default function CampusApp() {
                           <div className="next-top">
                             <span className="light-tag">
                               <Video size={15} />
-                              PROCHAIN RENDEZ-VOUS
+                              {tx("PROCHAIN RENDEZ-VOUS")}
                             </span>
-                            <span>ZOOM</span>
+                            <span>{tx("ZOOM")}</span>
                           </div>
                           {upcoming[0] ? (
                             <>
-                              <h2>{upcoming[0].title}</h2>
+                              <h2>{tx(upcoming[0].title)}</h2>
                               <p>
                                 <CalendarDays size={16} />
-                                {date(upcoming[0].start)}
-                                <span>·</span>
-                                {upcoming[0].duration} min
+                                {tx(date(upcoming[0].start))}
+                                <span>{tx("·")}</span>
+                                {tx(upcoming[0].duration)}
+                                {tx("min")}
                               </p>
                               <div className="next-bottom">
                                 <span>
-                                  {trackLabel(upcoming[0].track)}{" "}
-                                  <span className="dot-sep">/</span> Avec Eddy
+                                  {tx(trackLabel(upcoming[0].track))}
+                                  {tx(" ")}
+                                  <span className="dot-sep">{tx("/")}</span>
+                                  {tx("Avec Eddy")}
                                 </span>
                                 <Button
                                   variant="secondary"
                                   onClick={() => setSession(upcoming[0])}
                                 >
-                                  Voir la séance <ArrowUpRight size={17} />
+                                  {tx("Voir la séance")}
+                                  <ArrowUpRight size={17} />
                                 </Button>
                               </div>
                             </>
                           ) : (
                             <>
-                              <h2>Votre prochain cours se prépare.</h2>
-                              <p>Les séances planifiées apparaîtront ici.</p>
+                              <h2>{tx("Votre prochain cours se prépare.")}</h2>
+                              <p>
+                                {tx("Les séances planifiées apparaîtront ici.")}
+                              </p>
                             </>
                           )}
                         </div>
                         <div className="section-heading">
                           <h2>
-                            {teacher
-                              ? "À vous de jouer"
-                              : "Continuer mon parcours"}
+                            {tx(
+                              teacher
+                                ? "À vous de jouer"
+                                : "Continuer mon parcours",
+                            )}
                           </h2>
                           <button
                             onClick={() => go(teacher ? "projects" : "courses")}
                           >
-                            Tout voir <ArrowRight size={16} />
+                            {tx("Tout voir")}
+                            <ArrowRight size={16} />
                           </button>
                         </div>
                         <div className="panel action-panel">
@@ -1336,16 +1404,19 @@ export default function CampusApp() {
                                     <FileText />
                                   </span>
                                   <span>
-                                    <strong>{title(s.lesson)}</strong>
+                                    <strong>{tx(title(s.lesson))}</strong>
                                     <small>
-                                      {name(s.student)} · Travail à corriger
+                                      {tx(name(s.student))}
+                                      {tx("· Travail à corriger")}
                                     </small>
                                   </span>
                                   <ChevronRight size={18} />
                                 </button>
                               ))
                             ) : (
-                              <Empty title="Les corrections sont à jour" />
+                              <Empty
+                                title={tx("Les corrections sont à jour")}
+                              />
                             )
                           ) : (
                             c.lessons
@@ -1374,9 +1445,12 @@ export default function CampusApp() {
                                     )}
                                   </span>
                                   <span>
-                                    <strong>{l.title}</strong>
+                                    <strong>{tx(l.title)}</strong>
                                     <small>
-                                      {l.module} · {l.minutes} min
+                                      {tx(l.module)}
+                                      {tx(" · ")}
+                                      {tx(l.minutes)}
+                                      {tx("min")}
                                     </small>
                                   </span>
                                   <ChevronRight size={18} />
@@ -1386,16 +1460,19 @@ export default function CampusApp() {
                         </div>
                         <div className="section-heading">
                           <h2>
-                            {teacher
-                              ? "Des parcours, des progrès"
-                              : "Ma progression"}
+                            {tx(
+                              teacher
+                                ? "Des parcours, des progrès"
+                                : "Ma progression",
+                            )}
                           </h2>
                           <button
                             onClick={() =>
                               go(teacher ? "students" : "projects")
                             }
                           >
-                            Voir le suivi <ArrowRight size={16} />
+                            {tx("Voir le suivi")}
+                            <ArrowRight size={16} />
                           </button>
                         </div>
                         <div className="panel progress-panel">
@@ -1406,21 +1483,29 @@ export default function CampusApp() {
                                 <div
                                   className={`avatar ${s.track === "kids" ? "orange" : "blue"}`}
                                 >
-                                  {s.name
-                                    .split(" ")
-                                    .map((x) => x[0])
-                                    .join("")}
+                                  {tx(
+                                    s.name
+                                      .split(" ")
+                                      .map((x) => x[0])
+                                      .join(""),
+                                  )}
                                 </div>
                                 <div className="progress-info">
                                   <div>
                                     <strong>{s.name}</strong>
                                     <span>
-                                      {p.done}/{p.total} compétences
+                                      {tx(p.done)}
+                                      {tx("/")}
+                                      {tx(p.total)}
+                                      {tx("compétences")}
                                     </span>
                                   </div>
                                   <Progress value={p.percent} />
                                 </div>
-                                <span className="percent">{p.percent}%</span>
+                                <span className="percent">
+                                  {tx(p.percent)}
+                                  {tx("%")}
+                                </span>
                               </div>
                             );
                           })}
@@ -1428,9 +1513,9 @@ export default function CampusApp() {
                       </section>
                       <aside className="right-column">
                         <div className="section-heading">
-                          <h2>À l’agenda</h2>
+                          <h2>{tx("À l’agenda")}</h2>
                           <button
-                            aria-label="Voir tous les cours"
+                            aria-label={tx("Voir tous les cours")}
                             onClick={() => go("sessions")}
                           >
                             <ArrowUpRight size={20} />
@@ -1445,64 +1530,77 @@ export default function CampusApp() {
                             >
                               <div className="date-block">
                                 <strong>
-                                  {new Intl.DateTimeFormat("fr", {
-                                    day: "numeric",
-                                    timeZone: zone,
-                                  }).format(new Date(s.start))}
+                                  {tx(
+                                    new Intl.DateTimeFormat(localeCode(), {
+                                      day: "numeric",
+                                      timeZone: zone,
+                                    }).format(new Date(s.start)),
+                                  )}
                                 </strong>
                                 <span>
-                                  {new Intl.DateTimeFormat("fr", {
-                                    month: "short",
-                                    timeZone: zone,
-                                  }).format(new Date(s.start))}
+                                  {tx(
+                                    new Intl.DateTimeFormat(localeCode(), {
+                                      month: "short",
+                                      timeZone: zone,
+                                    }).format(new Date(s.start)),
+                                  )}
                                 </span>
                               </div>
                               <div>
                                 <small>
-                                  {hour(s.start)} · {s.duration} min
+                                  {tx(hour(s.start))}
+                                  {tx(" · ")}
+                                  {tx(s.duration)}
+                                  {tx("min")}
                                 </small>
-                                <strong>{s.title}</strong>
+                                <strong>{tx(s.title)}</strong>
                                 <Badge
                                   tone={s.track === "kids" ? "orange" : "blue"}
                                 >
-                                  {trackLabel(s.track)}
+                                  {tx(trackLabel(s.track))}
                                 </Badge>
                               </div>
                             </button>
                           ))}
-                          {!upcoming.length && <p>Aucune séance planifiée.</p>}
+                          {!upcoming.length && (
+                            <p>{tx("Aucune séance planifiée.")}</p>
+                          )}
                         </div>
                         <div className="partner-card">
                           <span className="tile-icon blue">
                             <BriefcaseBusiness />
                           </span>
                           <div className="eyebrow">
-                            L’APPRENTISSAGE CONTINUE
+                            {tx("L’APPRENTISSAGE CONTINUE")}
                           </div>
                           <h2>
-                            La pratique ouvre
+                            {tx("La pratique ouvre")}
                             <br />
-                            de nouvelles perspectives.
+                            {tx("de nouvelles perspectives.")}
                           </h2>
                           <p>
-                            Organisez les objectifs, les réalisations et les
-                            prochaines étapes.
+                            {tx(
+                              "Organisez les objectifs, les réalisations et les prochaines étapes.",
+                            )}
                           </p>
                           {!["parent", "child"].includes(persona) && (
                             <button onClick={() => go("stages")}>
-                              Voir les dossiers <ArrowUpRight size={18} />
+                              {tx("Voir les dossiers")}
+                              <ArrowUpRight size={18} />
                             </button>
                           )}
                           <div className="partner-names">
                             <BrandLogo className="partner-logo" />
-                            <span>Comprendre. Pratiquer. Progresser.</span>
+                            <span>
+                              {tx("Comprendre. Pratiquer. Progresser.")}
+                            </span>
                           </div>
                         </div>
                         <div className="learning-partner">
                           <GraduationCap size={25} />
                           <div>
-                            <strong>DevOps Easy Learning</strong>
-                            <small>Partenaire de LessGooo</small>
+                            <strong>{tx("DevOps Easy Learning")}</strong>
+                            <small>{tx("Partenaire de LessGooo")}</small>
                           </div>
                         </div>
                       </aside>
@@ -1515,14 +1613,16 @@ export default function CampusApp() {
                       <Tabs value={filter} onValueChange={setFilter}>
                         <TabsList>
                           <TabsTrigger value="all">
-                            Tous les parcours
+                            {tx("Tous les parcours")}
                           </TabsTrigger>
                           {teacher && (
                             <>
                               <TabsTrigger value="devops">
-                                DevOps & Cloud
+                                {tx("DevOps & Cloud")}
                               </TabsTrigger>
-                              <TabsTrigger value="kids">Kids</TabsTrigger>
+                              <TabsTrigger value="kids">
+                                {tx("Kids")}
+                              </TabsTrigger>
                             </>
                           )}
                         </TabsList>
@@ -1530,8 +1630,8 @@ export default function CampusApp() {
                       <label className="search">
                         <Search size={17} />
                         <Input
-                          aria-label="Rechercher une leçon"
-                          placeholder="Rechercher une leçon"
+                          aria-label={tx("Rechercher une leçon")}
+                          placeholder={tx("Rechercher une leçon")}
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
                         />
@@ -1559,22 +1659,23 @@ export default function CampusApp() {
                               <Badge
                                 tone={l.track === "kids" ? "orange" : "blue"}
                               >
-                                {trackLabel(l.track)}
+                                {tx(trackLabel(l.track))}
                               </Badge>
                             </div>
-                            <div className="eyebrow">{l.module}</div>
-                            <h2>{l.title}</h2>
-                            <p>{l.explanation.split("\n")[0]}</p>
+                            <div className="eyebrow">{tx(l.module)}</div>
+                            <h2>{tx(l.title)}</h2>
+                            <p>{tx(l.explanation).split("\n")[0]}</p>
                             <div className="course-meta">
                               <span>
                                 <Clock size={14} />
-                                {l.minutes} min
+                                {tx(l.minutes)}
+                                {tx("min")}
                               </span>
-                              <span>{l.level}</span>
+                              <span>{tx(l.level)}</span>
                               {validated && (
                                 <span className="success">
                                   <Check size={14} />
-                                  Validé
+                                  {tx("Validé")}
                                 </span>
                               )}
                             </div>
@@ -1583,11 +1684,12 @@ export default function CampusApp() {
                                 variant="outline"
                                 onClick={() => setLesson(l)}
                               >
-                                Ouvrir la leçon <ArrowRight size={16} />
+                                {tx("Ouvrir la leçon")}
+                                <ArrowRight size={16} />
                               </Button>
                               {teacher && (
                                 <button onClick={() => openLesson(l)}>
-                                  Modifier
+                                  {tx("Modifier")}
                                 </button>
                               )}
                             </div>
@@ -1596,8 +1698,8 @@ export default function CampusApp() {
                       })}
                     </div>
                     {!visibleLessons.length && (
-                      <Empty title="Aucune leçon trouvée">
-                        Essayez un autre mot ou créez une leçon.
+                      <Empty title={tx("Aucune leçon trouvée")}>
+                        {tx("Essayez un autre mot ou créez une leçon.")}
                       </Empty>
                     )}
                   </>
@@ -1606,9 +1708,10 @@ export default function CampusApp() {
                   <>
                     <div className="info-line">
                       <Globe size={17} />
-                      Horaires affichés pour{" "}
-                      {zones.find((z) => z[0] === zone)?.[1]}. Le passage à
-                      l’heure d’été est pris en compte.
+                      {tx("Horaires affichés pour")}
+                      {tx(" ")}
+                      {tx(zones.find((z) => z[0] === zone)?.[1])}
+                      {tx(". Le passage à l’heure d’été est pris en compte.")}
                     </div>
                     <div className="session-list">
                       {[...c.sessions]
@@ -1625,7 +1728,7 @@ export default function CampusApp() {
                                 <Badge
                                   tone={s.track === "kids" ? "orange" : "blue"}
                                 >
-                                  {trackLabel(s.track)}
+                                  {tx(trackLabel(s.track))}
                                 </Badge>
                                 <Badge
                                   tone={
@@ -1636,16 +1739,21 @@ export default function CampusApp() {
                                         : "green"
                                   }
                                 >
-                                  {s.status === "cancelled"
-                                    ? "Annulé"
-                                    : Date.parse(s.start) < Date.now()
-                                      ? "Séance passée"
-                                      : "À venir"}
+                                  {tx(
+                                    s.status === "cancelled"
+                                      ? "Annulé"
+                                      : Date.parse(s.start) < Date.now()
+                                        ? "Séance passée"
+                                        : "À venir",
+                                  )}
                                 </Badge>
                               </div>
-                              <h2>{s.title}</h2>
+                              <h2>{tx(s.title)}</h2>
                               <p>
-                                {date(s.start)} · {s.duration} min
+                                {tx(date(s.start))}
+                                {tx(" · ")}
+                                {tx(s.duration)}
+                                {tx("min")}
                               </p>
                             </div>
                             <div className="row-actions">
@@ -1653,14 +1761,14 @@ export default function CampusApp() {
                                 variant="outline"
                                 onClick={() => setSession(s)}
                               >
-                                Ouvrir
+                                {tx("Ouvrir")}
                               </Button>
                               {teacher && (
                                 <Button
                                   variant="ghost"
                                   onClick={() => openSession(s)}
                                 >
-                                  Modifier
+                                  {tx("Modifier")}
                                 </Button>
                               )}
                             </div>
@@ -1681,7 +1789,7 @@ export default function CampusApp() {
                             ["revise", "À retravailler"],
                           ].map(([v, l]) => (
                             <TabsTrigger key={v} value={v}>
-                              {l}
+                              {tx(l)}
                             </TabsTrigger>
                           ))}
                         </TabsList>
@@ -1691,10 +1799,10 @@ export default function CampusApp() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Travail remis</TableHead>
-                            {teacher && <TableHead>Élève</TableHead>}
-                            <TableHead>État</TableHead>
-                            <TableHead>Date</TableHead>
+                            <TableHead>{tx("Travail remis")}</TableHead>
+                            {teacher && <TableHead>{tx("Élève")}</TableHead>}
+                            <TableHead>{tx("État")}</TableHead>
+                            <TableHead>{tx("Date")}</TableHead>
                             <TableHead />
                           </TableRow>
                         </TableHeader>
@@ -1706,16 +1814,16 @@ export default function CampusApp() {
                             .map((s) => (
                               <TableRow key={s.id}>
                                 <TableCell>
-                                  <strong>{title(s.lesson)}</strong>
+                                  <strong>{tx(title(s.lesson))}</strong>
                                   {s.file && (
                                     <small>
                                       <Paperclip size={12} />
-                                      {s.file.name}
+                                      {tx(s.file.name)}
                                     </small>
                                   )}
                                 </TableCell>
                                 {teacher && (
-                                  <TableCell>{name(s.student)}</TableCell>
+                                  <TableCell>{tx(name(s.student))}</TableCell>
                                 )}
                                 <TableCell>
                                   <Badge
@@ -1727,18 +1835,24 @@ export default function CampusApp() {
                                           : "orange"
                                     }
                                   >
-                                    {s.status === "pending"
-                                      ? "À corriger"
-                                      : statusText[s.status]}
+                                    {tx(
+                                      s.status === "pending"
+                                        ? "À corriger"
+                                        : statusText[s.status],
+                                    )}
                                   </Badge>
                                 </TableCell>
-                                <TableCell>{date(s.created, true)}</TableCell>
+                                <TableCell>
+                                  {tx(date(s.created, true))}
+                                </TableCell>
                                 <TableCell>
                                   <Button
                                     variant="ghost"
                                     onClick={() => setSubmission(s)}
                                   >
-                                    {teacher ? "Examiner" : "Voir le retour"}
+                                    {tx(
+                                      teacher ? "Examiner" : "Voir le retour",
+                                    )}
                                     <ChevronRight size={16} />
                                   </Button>
                                 </TableCell>
@@ -1749,8 +1863,10 @@ export default function CampusApp() {
                       {!c.submissions.filter(
                         (s) => filter === "all" || s.status === filter,
                       ).length && (
-                        <Empty title="Aucun travail dans cette catégorie">
-                          Les travaux remis depuis une leçon apparaîtront ici.
+                        <Empty title={tx("Aucun travail dans cette catégorie")}>
+                          {tx(
+                            "Les travaux remis depuis une leçon apparaîtront ici.",
+                          )}
                         </Empty>
                       )}
                     </div>
@@ -1761,10 +1877,10 @@ export default function CampusApp() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Élève</TableHead>
-                          <TableHead>Parcours</TableHead>
-                          <TableHead>Progression</TableHead>
-                          <TableHead>Contact</TableHead>
+                          <TableHead>{tx("Élève")}</TableHead>
+                          <TableHead>{tx("Parcours")}</TableHead>
+                          <TableHead>{tx("Progression")}</TableHead>
+                          <TableHead>{tx("Contact")}</TableHead>
                           <TableHead />
                         </TableRow>
                       </TableHeader>
@@ -1778,7 +1894,7 @@ export default function CampusApp() {
                                   <span
                                     className={`avatar ${s.track === "kids" ? "orange" : "blue"}`}
                                   >
-                                    {s.name[0]}
+                                    {tx(s.name[0])}
                                   </span>
                                   <strong>{s.name}</strong>
                                 </div>
@@ -1787,26 +1903,28 @@ export default function CampusApp() {
                                 <Badge
                                   tone={s.track === "kids" ? "orange" : "blue"}
                                 >
-                                  {trackLabel(s.track)}
+                                  {tx(trackLabel(s.track))}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 <div className="table-progress">
                                   <Progress value={p.percent} />
                                   <span>
-                                    {p.done}/{p.total}
+                                    {tx(p.done)}
+                                    {tx("/")}
+                                    {tx(p.total)}
                                   </span>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {s.parent || s.email || "—"}
+                                {tx(s.parent || s.email || "—")}
                               </TableCell>
                               <TableCell>
                                 <Button
                                   variant="ghost"
                                   onClick={() => openStudent(s)}
                                 >
-                                  Modifier
+                                  {tx("Modifier")}
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -1820,9 +1938,11 @@ export default function CampusApp() {
                   <>
                     <div className="info-line">
                       <MessagesSquare size={18} />
-                      {teacher
-                        ? "Un créneau réservé consomme un crédit ; son annulation avant la séance le restitue."
-                        : `Vous disposez de ${c.students[0]?.credits || 0} crédit(s). Une réservation utilise un crédit.`}
+                      {tx(
+                        teacher
+                          ? "Un créneau réservé consomme un crédit ; son annulation avant la séance le restitue."
+                          : `Vous disposez de ${c.students[0]?.credits || 0} crédit(s). Une réservation utilise un crédit.`,
+                      )}
                     </div>
                     <div className="course-grid">
                       {[...c.slots]
@@ -1833,15 +1953,20 @@ export default function CampusApp() {
                               <Badge
                                 tone={s.status === "open" ? "green" : "blue"}
                               >
-                                {statusText[s.status]}
+                                {tx(statusText[s.status])}
                               </Badge>
-                              <span>{s.duration} minutes</span>
+                              <span>
+                                {tx(s.duration)}
+                                {tx(" minutes")}
+                              </span>
                             </div>
-                            <h2>{date(s.start)}</h2>
+                            <h2>{tx(date(s.start))}</h2>
                             <p>
-                              {s.student
-                                ? name(s.student)
-                                : "Séance individuelle avec Eddy"}
+                              {tx(
+                                s.student
+                                  ? name(s.student)
+                                  : "Séance individuelle avec Eddy",
+                              )}
                             </p>
                             {s.goal && <blockquote>{s.goal}</blockquote>}
                             {s.status === "open" ? (
@@ -1885,7 +2010,8 @@ export default function CampusApp() {
                                   })
                                 }
                               >
-                                Réserver <ArrowRight size={16} />
+                                {tx("Réserver")}
+                                <ArrowRight size={16} />
                               </Button>
                             ) : s.status === "booked" ? (
                               <div className="slot-actions">
@@ -1896,11 +2022,13 @@ export default function CampusApp() {
                                     target="_blank"
                                     rel="noreferrer"
                                   >
-                                    Rejoindre Zoom
+                                    {tx("Rejoindre Zoom")}
                                   </a>
                                 ) : (
                                   <small>
-                                    Lien Zoom à renseigner par le formateur.
+                                    {tx(
+                                      "Lien Zoom à renseigner par le formateur.",
+                                    )}
                                   </small>
                                 )}
                                 <Button
@@ -1917,7 +2045,7 @@ export default function CampusApp() {
                                     })
                                   }
                                 >
-                                  Annuler la réservation
+                                  {tx("Annuler la réservation")}
                                 </Button>
                                 {teacher && (
                                   <Button
@@ -1927,12 +2055,14 @@ export default function CampusApp() {
                                       act("complete", { id: s.id })
                                     }
                                   >
-                                    Marquer terminée
+                                    {tx("Marquer terminée")}
                                   </Button>
                                 )}
                               </div>
                             ) : (
-                              <Badge tone="green">Séance effectuée</Badge>
+                              <Badge tone="green">
+                                {tx("Séance effectuée")}
+                              </Badge>
                             )}
                             {teacher && s.status !== "completed" && (
                               <Button
@@ -1955,7 +2085,7 @@ export default function CampusApp() {
                                   })
                                 }
                               >
-                                Modifier le créneau / Zoom
+                                {tx("Modifier le créneau / Zoom")}
                               </Button>
                             )}
                           </article>
@@ -1968,12 +2098,13 @@ export default function CampusApp() {
                     <div className="stage-intro">
                       <div>
                         <span className="eyebrow">
-                          LESSGOOO · SUIVI PÉDAGOGIQUE
+                          {tx("LESSGOOO · SUIVI PÉDAGOGIQUE")}
                         </span>
-                        <h2>Du projet aux compétences.</h2>
+                        <h2>{tx("Du projet aux compétences.")}</h2>
                         <p>
-                          Chaque dossier relie les acquis de formation, les
-                          objectifs et le suivi du stage.
+                          {tx(
+                            "Chaque dossier relie les acquis de formation, les objectifs et le suivi du stage.",
+                          )}
                         </p>
                       </div>
                       <BriefcaseBusiness size={48} />
@@ -1982,9 +2113,11 @@ export default function CampusApp() {
                       {Object.entries(stageLabels).map(([key, label]) => (
                         <section className="stage-column" key={key}>
                           <h3>
-                            {label}
+                            {tx(label)}
                             <span>
-                              {c.stages.filter((s) => s.status === key).length}
+                              {tx(
+                                c.stages.filter((s) => s.status === key).length,
+                              )}
                             </span>
                           </h3>
                           {c.stages
@@ -1996,25 +2129,29 @@ export default function CampusApp() {
                                 onClick={() => setStage(s)}
                               >
                                 <span className="avatar blue">
-                                  {name(s.student)[0]}
+                                  {tx(name(s.student)[0])}
                                 </span>
-                                <strong>{name(s.student)}</strong>
-                                <small>Dossier de démonstration</small>
-                                <p>{s.notes || "Objectifs à compléter"}</p>
+                                <strong>{tx(name(s.student))}</strong>
+                                <small>{tx("Dossier de démonstration")}</small>
+                                <p>{tx(s.notes || "Objectifs à compléter")}</p>
                                 <span className="stage-open">
-                                  Ouvrir le dossier <ArrowUpRight size={16} />
+                                  {tx("Ouvrir le dossier")}
+                                  <ArrowUpRight size={16} />
                                 </span>
                               </button>
                             ))}
                           {!c.stages.filter((s) => s.status === key).length && (
-                            <div className="stage-empty">Aucun dossier</div>
+                            <div className="stage-empty">
+                              {tx("Aucun dossier")}
+                            </div>
                           )}
                         </section>
                       ))}
                     </div>
                     <p className="footnote">
-                      Les dossiers de démonstration ne correspondent à aucune
-                      affectation réelle dans une entreprise.
+                      {tx(
+                        "Les dossiers de démonstration ne correspondent à aucune affectation réelle dans une entreprise.",
+                      )}
                     </p>
                   </>
                 )}
@@ -2023,37 +2160,44 @@ export default function CampusApp() {
                     <div className="payment-summary">
                       {["USD", "CAD", "XAF"].map((currency) => (
                         <div className="panel" key={currency}>
-                          <small>Total vérifié · {currency}</small>
+                          <small>
+                            {tx("Total vérifié · ")}
+                            {tx(currency)}
+                          </small>
                           <strong>
-                            {money(
-                              c.payments
-                                .filter(
-                                  (p) =>
-                                    p.currency === currency &&
-                                    p.status === "verified",
-                                )
-                                .reduce((a, p) => a + p.amount, 0),
-                              currency,
+                            {tx(
+                              money(
+                                c.payments
+                                  .filter(
+                                    (p) =>
+                                      p.currency === currency &&
+                                      p.status === "verified",
+                                  )
+                                  .reduce((a, p) => a + p.amount, 0),
+                                currency,
+                              ),
                             )}
                           </strong>
                         </div>
                       ))}
                     </div>
                     <div className="section-heading">
-                      <p>Registre manuel · Aucun prélèvement bancaire</p>
+                      <p>
+                        {tx("Registre manuel · Aucun prélèvement bancaire")}
+                      </p>
                       <Button variant="outline" onClick={csvExport}>
                         <Download size={16} />
-                        Exporter CSV
+                        {tx("Exporter CSV")}
                       </Button>
                     </div>
                     <div className="panel">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Élève / Objet</TableHead>
-                            <TableHead>Montant</TableHead>
-                            <TableHead>Référence</TableHead>
-                            <TableHead>Statut</TableHead>
+                            <TableHead>{tx("Élève / Objet")}</TableHead>
+                            <TableHead>{tx("Montant")}</TableHead>
+                            <TableHead>{tx("Référence")}</TableHead>
+                            <TableHead>{tx("Statut")}</TableHead>
                             <TableHead />
                           </TableRow>
                         </TableHeader>
@@ -2061,15 +2205,15 @@ export default function CampusApp() {
                           {c.payments.map((p) => (
                             <TableRow key={p.id}>
                               <TableCell>
-                                <strong>{name(p.student)}</strong>
-                                <small>{p.description}</small>
+                                <strong>{tx(name(p.student))}</strong>
+                                <small>{tx(p.description)}</small>
                               </TableCell>
                               <TableCell>
-                                {money(p.amount, p.currency)}
+                                {tx(money(p.amount, p.currency))}
                               </TableCell>
                               <TableCell>
-                                {p.reference}
-                                <small>{p.date}</small>
+                                {tx(p.reference)}
+                                <small>{tx(p.date)}</small>
                               </TableCell>
                               <TableCell>
                                 <Badge
@@ -2081,7 +2225,7 @@ export default function CampusApp() {
                                         : "orange"
                                   }
                                 >
-                                  {statusText[p.status]}
+                                  {tx(statusText[p.status])}
                                 </Badge>
                               </TableCell>
                               <TableCell>
@@ -2102,7 +2246,7 @@ export default function CampusApp() {
                                         })
                                       }
                                     >
-                                      Vérifier
+                                      {tx("Vérifier")}
                                     </Button>
                                   )}
                                   {teacher && p.status === "verified" && (
@@ -2122,7 +2266,7 @@ export default function CampusApp() {
                                         })
                                       }
                                     >
-                                      Remboursé
+                                      {tx("Remboursé")}
                                     </Button>
                                   )}
                                   {p.status === "verified" && (
@@ -2142,7 +2286,7 @@ export default function CampusApp() {
                                       }
                                     >
                                       <Download size={16} />
-                                      Reçu
+                                      {tx("Reçu")}
                                     </Button>
                                   )}
                                 </div>
@@ -2161,18 +2305,18 @@ export default function CampusApp() {
                         <div className="section-heading">
                           <span className="person-cell">
                             <span className="avatar blue">
-                              {name(h.student)[0]}
+                              {tx(name(h.student)[0])}
                             </span>
-                            <strong>{name(h.student)}</strong>
+                            <strong>{tx(name(h.student))}</strong>
                           </span>
                           <Badge tone={h.answer ? "green" : "orange"}>
-                            {h.answer ? "Réponse disponible" : "En attente"}
+                            {tx(h.answer ? "Réponse disponible" : "En attente")}
                           </Badge>
                         </div>
                         <h2>{h.question}</h2>
                         {h.answer && (
                           <div className="answer">
-                            <strong>Réponse du formateur</strong>
+                            <strong>{tx("Réponse du formateur")}</strong>
                             <p>{h.answer}</p>
                           </div>
                         )}
@@ -2196,14 +2340,14 @@ export default function CampusApp() {
                               })
                             }
                           >
-                            {h.answer ? "Modifier la réponse" : "Répondre"}
+                            {tx(h.answer ? "Modifier la réponse" : "Répondre")}
                           </Button>
                         )}
                       </article>
                     ))}
                     {!c.help.length && (
-                      <Empty title="Aucune question pour le moment">
-                        Le formateur répondra ici à vos questions.
+                      <Empty title={tx("Aucune question pour le moment")}>
+                        {tx("Le formateur répondra ici à vos questions.")}
                       </Empty>
                     )}
                   </div>
@@ -2212,6 +2356,8 @@ export default function CampusApp() {
                   "explore",
                   "notebook",
                   "library",
+                  "galleries",
+                  "profile",
                   "career",
                   "integrations",
                 ].includes(page) && (
@@ -2229,54 +2375,59 @@ export default function CampusApp() {
                         <LifeBuoy />
                       </span>
                       <h2>
-                        Notre premier test, ensemble{" "}
+                        {tx("Notre premier test, ensemble")}
+                        {tx(" ")}
                         <HelpTip>
-                          Le changement de vue sert à tester les parcours de
-                          démonstration. Il ne connecte pas de vrais comptes
-                          élèves.
+                          {tx(
+                            "Le changement de vue sert à tester les parcours de démonstration. Il ne connecte pas de vrais comptes élèves.",
+                          )}
                         </HelpTip>
                       </h2>
                       <Button
                         variant="outline"
                         onClick={() => go("integrations")}
                       >
-                        Configurer Drive et Notch Pay
+                        {tx("Configurer Drive et Notch Pay")}
                       </Button>
                       <ol className="steps">
                         <li>
-                          <strong>Remettre un travail</strong>
+                          <strong>{tx("Remettre un travail")}</strong>
                           <p>
-                            Passez en vue Élève DevOps, ouvrez une leçon et
-                            envoyez une réponse.
+                            {tx(
+                              "Passez en vue Élève DevOps, ouvrez une leçon et envoyez une réponse.",
+                            )}
                           </p>
                         </li>
                         <li>
-                          <strong>Faire une correction</strong>
+                          <strong>{tx("Faire une correction")}</strong>
                           <p>
-                            Revenez en vue Formateur, ouvrez Travaux &
-                            corrections, puis validez ou demandez une
-                            amélioration.
+                            {tx(
+                              "Revenez en vue Formateur, ouvrez Travaux & corrections, puis validez ou demandez une amélioration.",
+                            )}
                           </p>
                         </li>
                         <li>
-                          <strong>Vérifier la progression</strong>
+                          <strong>{tx("Vérifier la progression")}</strong>
                           <p>
-                            Revenez dans la vue élève et actualisez : le retour
-                            et la progression restent enregistrés.
+                            {tx(
+                              "Revenez dans la vue élève et actualisez : le retour et la progression restent enregistrés.",
+                            )}
                           </p>
                         </li>
                         <li>
-                          <strong>Tester une réservation</strong>
+                          <strong>{tx("Tester une réservation")}</strong>
                           <p>
-                            Réservez un one-on-one depuis la vue adulte, puis
-                            annulez-le pour retrouver votre crédit.
+                            {tx(
+                              "Réservez un one-on-one depuis la vue adulte, puis annulez-le pour retrouver votre crédit.",
+                            )}
                           </p>
                         </li>
                         <li>
-                          <strong>Voir le suivi parental</strong>
+                          <strong>{tx("Voir le suivi parental")}</strong>
                           <p>
-                            Ouvrez la vue Parent pour consulter les travaux, les
-                            cours et les paiements de Maya.
+                            {tx(
+                              "Ouvrez la vue Parent pour consulter les travaux, les cours et les paiements de Maya.",
+                            )}
                           </p>
                         </li>
                       </ol>
@@ -2284,18 +2435,16 @@ export default function CampusApp() {
                     <section>
                       <div className="panel settings-card">
                         <ShieldCheck size={26} />
-                        <h2>Votre espace de démonstration</h2>
+                        <h2>{tx("Votre espace de démonstration")}</h2>
                         <p>
-                          Cette version locale sert à tester avec des profils
-                          fictifs. Le changement de vue simule les rôles dans
-                          votre espace d’essai. Il ne crée pas des comptes
-                          élèves indépendants.
+                          {tx(
+                            "Cette version locale sert à tester avec des profils fictifs. Le changement de vue simule les rôles dans votre espace d’essai. Il ne crée pas des comptes élèves indépendants.",
+                          )}
                         </p>
                         <p>
-                          Les modifications et pièces jointes sont sauvegardées
-                          sur cet ordinateur. L’export contient les dossiers
-                          visibles et les noms des pièces jointes ; les fichiers
-                          joints se téléchargent séparément.
+                          {tx(
+                            "Les modifications et pièces jointes sont sauvegardées sur cet ordinateur. L’export contient les dossiers visibles et les noms des pièces jointes ; les fichiers joints se téléchargent séparément.",
+                          )}
                         </p>
                         <Button
                           variant="outline"
@@ -2314,52 +2463,61 @@ export default function CampusApp() {
                           }
                         >
                           <Download size={16} />
-                          Exporter mes données de test
+                          {tx("Exporter mes données de test")}
                         </Button>
                       </div>
                       <div className="panel settings-card">
-                        <h2>Avant les vrais élèves</h2>
+                        <h2>{tx("Avant les vrais élèves")}</h2>
                         <ul className="checklist">
                           <li>
-                            Configurer l’accès individuel des élèves, parents et
-                            tuteurs.
-                          </li>
-                          <li>Ajouter vos liens Zoom et replays autorisés.</li>
-                          <li>
-                            Valider les tarifs, horaires et conditions des
-                            stages.
+                            {tx(
+                              "Configurer l’accès individuel des élèves, parents et tuteurs.",
+                            )}
                           </li>
                           <li>
-                            Configurer les emails et le prestataire de paiement
-                            si souhaité.
+                            {tx("Ajouter vos liens Zoom et replays autorisés.")}
                           </li>
                           <li>
-                            Valider le parcours parental et la restauration des
-                            sauvegardes.
+                            {tx(
+                              "Valider les tarifs, horaires et conditions des stages.",
+                            )}
+                          </li>
+                          <li>
+                            {tx(
+                              "Configurer les emails et le prestataire de paiement si souhaité.",
+                            )}
+                          </li>
+                          <li>
+                            {tx(
+                              "Valider le parcours parental et la restauration des sauvegardes.",
+                            )}
                           </li>
                         </ul>
                         <p className="footnote">
-                          Aucun email n’est envoyé et aucun compte AWS n’est
-                          créé depuis cette version.
+                          {tx(
+                            "Aucun email n’est envoyé et aucun compte AWS n’est créé depuis cette version.",
+                          )}
                         </p>
                       </div>
                       <div className="panel settings-card">
-                        <h2>Partenaires</h2>
+                        <h2>{tx("Partenaires")}</h2>
                         <p>
-                          <strong>DevOps Easy Learning</strong>
+                          <strong>{tx("DevOps Easy Learning")}</strong>
                           <br />
-                          Partenaire de formation de LessGooo.
+                          {tx("Partenaire de formation de LessGooo.")}
                         </p>
                         <a
                           href="https://www.devopseasylearning.com/"
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Visiter le site <ExternalLink size={14} />
+                          {tx("Visiter le site")}
+                          <ExternalLink size={14} />
                         </a>
                         <p>
-                          Les autres accords et modalités des stages restent à
-                          confirmer.
+                          {tx(
+                            "Les autres accords et modalités des stages restent à confirmer.",
+                          )}
                         </p>
                       </div>
                     </section>
@@ -2370,8 +2528,10 @@ export default function CampusApp() {
           )}
           <footer className="page-footer">
             <BrandLogo />
-            <span>LessGooo Academy · Apprendre pour aller plus loin.</span>
-            <span>Zoom · DevOps · Kids</span>
+            <span>
+              {tx("LessGooo Academy · Apprendre pour aller plus loin.")}
+            </span>
+            <span>{tx("Zoom · DevOps · Kids")}</span>
           </footer>
         </main>
       </SidebarInset>
@@ -2390,31 +2550,37 @@ export default function CampusApp() {
             <DialogHeader>
               <BrandLogo className="dialog-logo" />
               <DialogDescription>
-                {trackLabel(lesson.track)} · {lesson.module} · {lesson.minutes}{" "}
-                min
+                {tx(trackLabel(lesson.track))}
+                {tx(" · ")}
+                {tx(lesson.module)}
+                {tx(" · ")}
+                {tx(lesson.minutes)}
+                {tx(" ")}
+                {tx("min")}
               </DialogDescription>
-              <DialogTitle>{lesson.title}</DialogTitle>
+              <DialogTitle>{tx(lesson.title)}</DialogTitle>
             </DialogHeader>
             <div className="lesson-body">
               <section>
                 <h3>
                   <BookOpen size={19} />
-                  Comprendre
+                  {tx("Comprendre")}
                 </h3>
-                <p>{lesson.explanation}</p>
+                <p>{tx(lesson.explanation)}</p>
               </section>
               <section className="practice">
                 <h3>
-                  <Terminal size={19} />À toi de pratiquer
+                  <Terminal size={19} />
+                  {tx("À toi de pratiquer")}
                 </h3>
-                <p>{lesson.task}</p>
+                <p>{tx(lesson.task)}</p>
               </section>
               <section>
                 <h3>
                   <CheckCircle2 size={19} />
-                  Comment réussir
+                  {tx("Comment réussir")}
                 </h3>
-                <p>{lesson.criteria}</p>
+                <p>{tx(lesson.criteria)}</p>
               </section>
               {lesson.resource && (
                 <a
@@ -2423,12 +2589,14 @@ export default function CampusApp() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Ouvrir la ressource <ExternalLink size={16} />
+                  {tx("Ouvrir la ressource")}
+                  <ExternalLink size={16} />
                 </a>
               )}
               <p className="footnote">
-                Les travaux pratiques Linux, AWS et DevOps nécessitent un
-                ordinateur et un environnement autorisé.
+                {tx(
+                  "Les travaux pratiques Linux, AWS et DevOps nécessitent un ordinateur et un environnement autorisé.",
+                )}
               </p>
               {["adult", "child"].includes(persona) ? (
                 <Button
@@ -2456,7 +2624,8 @@ export default function CampusApp() {
                     });
                   }}
                 >
-                  Remettre mon travail <ArrowRight size={17} />
+                  {tx("Remettre mon travail")}
+                  <ArrowRight size={17} />
                 </Button>
               ) : teacher ? (
                 <Button
@@ -2465,7 +2634,7 @@ export default function CampusApp() {
                     openLesson(lesson);
                   }}
                 >
-                  Modifier cette leçon
+                  {tx("Modifier cette leçon")}
                 </Button>
               ) : null}
             </div>
@@ -2478,14 +2647,19 @@ export default function CampusApp() {
             <DialogHeader>
               <BrandLogo className="dialog-logo" />
               <DialogDescription>
-                {trackLabel(session.track)} · {date(session.start)} ·{" "}
-                {session.duration} min
+                {tx(trackLabel(session.track))}
+                {tx(" · ")}
+                {tx(date(session.start))}
+                {tx(" ·")}
+                {tx(" ")}
+                {tx(session.duration)}
+                {tx("min")}
               </DialogDescription>
-              <DialogTitle>{session.title}</DialogTitle>
+              <DialogTitle>{tx(session.title)}</DialogTitle>
             </DialogHeader>
             <div className="form-stack">
               {session.status === "cancelled" ? (
-                <Badge tone="red">Cette séance est annulée</Badge>
+                <Badge tone="red">{tx("Cette séance est annulée")}</Badge>
               ) : session.zoom ? (
                 <a
                   className="button-link primary"
@@ -2494,38 +2668,49 @@ export default function CampusApp() {
                   rel="noreferrer"
                 >
                   <Video size={18} />
-                  Rejoindre Zoom
+                  {tx("Rejoindre Zoom")}
                 </a>
               ) : (
                 <div className="notice">
                   <Video size={21} />
                   <p>
-                    Le lien Zoom n’a pas encore été renseigné.
-                    {teacher
-                      ? " Ajoutez votre lien participant dans Modifier le cours."
-                      : " Le formateur l’ajoutera avant la séance."}
+                    {tx("Le lien Zoom n’a pas encore été renseigné.")}
+                    {tx(
+                      teacher
+                        ? " Ajoutez votre lien participant dans Modifier le cours."
+                        : " Le formateur l’ajoutera avant la séance.",
+                    )}
                   </p>
                 </div>
               )}
               {session.replay && (
                 <a href={session.replay} target="_blank" rel="noreferrer">
-                  Consulter le replay <ExternalLink size={16} />
+                  {tx("Consulter le replay")}
+                  <ExternalLink size={16} />
                 </a>
               )}
               {!teacher && (
                 <p className="info-line">
-                  {persona === "parent" ? "Présence de Maya" : "Votre présence"}{" "}
-                  :{" "}
-                  {statusText[
-                    c.sessions.find((x) => x.id === session.id)?.attendance[
-                      studentId || ""
-                    ] || ""
-                  ] || "Non renseignée"}
+                  {tx(
+                    persona === "parent"
+                      ? "Présence de Maya"
+                      : "Votre présence",
+                  )}
+                  {tx(" ")}
+                  {tx(":")}
+                  {tx(" ")}
+                  {tx(
+                    statusText[
+                      c.sessions.find((x) => x.id === session.id)?.attendance[
+                        studentId || ""
+                      ] || ""
+                    ] || "Non renseignée",
+                  )}
                 </p>
               )}
               <Button variant="outline" onClick={() => calendar(session)}>
                 <CalendarDays size={17} />
-                Ajouter à mon calendrier
+                {tx("Ajouter à mon calendrier")}
               </Button>
               {teacher && (
                 <>
@@ -2536,11 +2721,13 @@ export default function CampusApp() {
                       openSession(session);
                     }}
                   >
-                    Modifier le cours
+                    {tx("Modifier le cours")}
                   </Button>
-                  <h3>Présences</h3>
+                  <h3>{tx("Présences")}</h3>
                   <p className="footnote">
-                    Rejoindre Zoom ne marque pas automatiquement présent.
+                    {tx(
+                      "Rejoindre Zoom ne marque pas automatiquement présent.",
+                    )}
                   </p>
                   {c.students
                     .filter((s) => s.track === session.track)
@@ -2548,7 +2735,7 @@ export default function CampusApp() {
                       <div className="attendance-row" key={s.id}>
                         <span>{s.name}</span>
                         <Choice
-                          label={`Présence de ${s.name}`}
+                          label={tx(`Présence de ${s.name}`)}
                           value={
                             c.sessions.find((x) => x.id === session.id)
                               ?.attendance[s.id] || "unmarked"
@@ -2587,34 +2774,43 @@ export default function CampusApp() {
                 <DialogHeader>
                   <BrandLogo className="dialog-logo" />
                   <DialogDescription>
-                    {name(s.student)} · {date(s.created)}
+                    {tx(name(s.student))}
+                    {tx(" · ")}
+                    {tx(date(s.created))}
                   </DialogDescription>
-                  <DialogTitle>{title(s.lesson)}</DialogTitle>
+                  <DialogTitle>{tx(title(s.lesson))}</DialogTitle>
                 </DialogHeader>
                 <Badge tone={s.status === "validated" ? "green" : "orange"}>
-                  {s.status === "pending" ? "À corriger" : statusText[s.status]}
+                  {tx(
+                    s.status === "pending"
+                      ? "À corriger"
+                      : statusText[s.status],
+                  )}
                 </Badge>
                 <div className="submission-text">{s.text}</div>
                 {s.url && (
                   <a href={s.url} target="_blank" rel="noreferrer">
-                    Ouvrir le projet <ExternalLink size={16} />
+                    {tx("Ouvrir le projet")}
+                    <ExternalLink size={16} />
                   </a>
                 )}
                 {s.file && (
                   <Button variant="outline" onClick={() => getFile(s)}>
                     <Download size={16} />
-                    {s.file.name}
+                    {tx(s.file.name)}
                   </Button>
                 )}
                 {["adult", "child"].includes(persona) &&
                   s.status === "pending" && (
                     <label className="file-input">
                       <Paperclip size={18} />
-                      {busy
-                        ? "Envoi en cours…"
-                        : "Joindre un fichier (tous formats · 200 Mo maximum)"}
+                      {tx(
+                        busy
+                          ? "Envoi en cours…"
+                          : "Joindre un fichier (tous formats · 200 Mo maximum)",
+                      )}
                       <input
-                        aria-label="Joindre un fichier"
+                        aria-label={tx("Joindre un fichier")}
                         disabled={busy}
                         type="file"
                         onChange={(e) => {
@@ -2625,7 +2821,10 @@ export default function CampusApp() {
                   )}
                 {s.feedback && (
                   <div className="answer">
-                    <strong>Retour du formateur · {s.level}</strong>
+                    <strong>
+                      {tx("Retour du formateur · ")}
+                      {tx(s.level)}
+                    </strong>
                     <p>{s.feedback}</p>
                   </div>
                 )}
@@ -2672,7 +2871,8 @@ export default function CampusApp() {
                       });
                     }}
                   >
-                    Évaluer ce travail <ArrowRight size={16} />
+                    {tx("Évaluer ce travail")}
+                    <ArrowRight size={16} />
                   </Button>
                 )}
               </DialogContent>
@@ -2689,20 +2889,23 @@ export default function CampusApp() {
                 <DialogHeader>
                   <BrandLogo className="dialog-logo" />
                   <DialogDescription>
-                    Suivi de stage · Démonstration
+                    {tx("Suivi de stage · Démonstration")}
                   </DialogDescription>
-                  <DialogTitle>Dossier de {name(s.student)}</DialogTitle>
+                  <DialogTitle>
+                    {tx("Dossier de ")}
+                    {tx(name(s.student))}
+                  </DialogTitle>
                 </DialogHeader>
-                <Badge tone="blue">{stageLabels[s.status]}</Badge>
-                <p className="submission-text">{s.notes}</p>
+                <Badge tone="blue">{tx(stageLabels[s.status])}</Badge>
+                <p className="submission-text">{tx(s.notes)}</p>
                 <div className="stage-facts">
                   <p>
-                    <strong>Tuteur</strong>
-                    {s.mentor || "Non affecté"}
+                    <strong>{tx("Tuteur")}</strong>
+                    {tx(s.mentor || "Non affecté")}
                   </p>
                   <p>
-                    <strong>Période</strong>
-                    {s.start ? `${s.start} au ${s.end}` : "À définir"}
+                    <strong>{tx("Période")}</strong>
+                    {tx(s.start ? `${s.start} au ${s.end}` : "À définir")}
                   </p>
                 </div>
                 <div className="row-actions">
@@ -2714,7 +2917,7 @@ export default function CampusApp() {
                         openStage(s);
                       }}
                     >
-                      Mettre à jour le dossier
+                      {tx("Mettre à jour le dossier")}
                     </Button>
                   )}
                   <Button
@@ -2736,19 +2939,21 @@ export default function CampusApp() {
                       });
                     }}
                   >
-                    Ajouter une activité
+                    {tx("Ajouter une activité")}
                   </Button>
                 </div>
-                <h3>Journal de suivi</h3>
+                <h3>{tx("Journal de suivi")}</h3>
                 {s.activities.length ? (
                   s.activities.map((a) => (
                     <div className="activity" key={a.id}>
-                      <small>{date(a.date)}</small>
+                      <small>{tx(date(a.date))}</small>
                       <p>{a.text}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="footnote">Aucune activité enregistrée.</p>
+                  <p className="footnote">
+                    {tx("Aucune activité enregistrée.")}
+                  </p>
                 )}
               </DialogContent>
             </Dialog>

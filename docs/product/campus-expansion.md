@@ -29,12 +29,37 @@ Payment recommendation: Notch Pay hosted checkout. As checked 2026-09-16, the
 official pricing page lists 2% local collections and 1% local withdrawals;
 Chariow Starter lists 15% and includes storefront services. These are different
 products. Merchant eligibility, country, settlement, KYC and actual live pricing
-must be confirmed with the provider. No merchant credentials are present.
+must be confirmed with the provider. Sandbox credentials have been configured
+and encrypted on the owner's computer; none are committed to this repository.
 
 Google Drive must authorize the requested email with drive.file scope. Uploads
 are private; the application does not make files public. Offline work remains
 local and pending until synchronization succeeds. Never use another connected
 Google account merely because it is available.
+
+CONFIRMED — owner request on 2026-09-17:
+- English is the default interface language, with a French switch and simple language.
+- Videos must upload, play in supported browsers, seek and download. Other formats remain downloadable.
+- Users can create named photo galleries for different purposes and edit their own profile and picture.
+- Parents need a clear home page with direct access to homework, classes, galleries and help.
+- Use the original logo and its complete colour palette throughout.
+- AI assistance is requested. Provider credentials and account setup remain pending; do not show a fake connected assistant.
+
+Local demo rules for this extension: each persona edits only its own profile and
+galleries. Parents may upload their own files, but cannot submit homework as a
+child. Existing media visibility is retained: teachers see all demo media, a
+parent sees their own files and their linked child's files, and shared teacher
+resources are visible to all. Only teachers can share galleries with the campus.
+Changing gallery sharing changes all its photos, including an upload completed
+after the change. Moving a photo out of a gallery makes it personal again; the
+original file is kept. Removing a photo from a gallery does not delete it.
+
+Profiles do not change identities, roles, parent links or external account email.
+Profile images accept recognised JPG, PNG, GIF and WebP files up to 8 MB.
+General files keep the 200 MB limit. Personal text is kept as written. The
+interface and authored lesson catalog have reviewed English translations; no
+online translation service receives user content. The language choice and last
+selected demo view are remembered on this browser.
 
 Sources: https://notchpay.co/pricing · https://chariow.com/en/pricing ·
 https://developer.notchpay.co/api-reference/payments ·
