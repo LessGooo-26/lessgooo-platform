@@ -258,9 +258,16 @@ docker compose exec campus node -p 'process.env.CAMPUS_DATA_DIR'
 ```
 
 3. Understand the container. The multi-stage Dockerfile installs from the
-   lockfile and runs lint/typecheck/tests/build. Runtime has production
+   lockfile and runs lint/typecheck/tests/build on the same digest-pinned Node 22
+   Alpine base used at runtime. Runtime has production
    dependencies, dist/, dist-server/ and backup/transcription scripts, but no
-   Python/model. UID 1000 runs Node. Compose drops capabilities, disables
+   Python/model or npm/Corepack/Yarn. Run the server and backup directly with
+   Node; package installation belongs in the build. Alpine uses musl, so new
+   native dependencies must pass the Linux image tests before promotion
+   ([official Node image guidance](https://github.com/nodejs/docker-node#nodealpine)).
+   CI checks container startup, SQLite backup integrity and rejected cross-site
+   requests, then scans the full runtime image. UID 1000 runs Node. Compose drops
+   capabilities, disables
    privilege escalation, makes root read-only, supplies /tmp and mounts
    campus-data at /app/.local-data. Only 127.0.0.1:4173 is published.
 

@@ -36,7 +36,7 @@ were preserved; deployment.md received an additional lab section.
 Docker is not installed on this workstation. Docker build/Compose, the container
 smoke test, containerized Semgrep, final-image vulnerability scan/SBOM/signing
 and registry push must run in the Linux GitHub workflow or a Docker-enabled lab.
-No hosted GitHub Actions run is claimed for these unpushed changes.
+See the dated hosted-CI follow-up below for checks subsequently run on GitHub.
 
 No AWS resources were purchased or created. EKS provisioning, server-side
 Kubernetes dry-run, actual CNI enforcement, volume provisioning, Argo sync,
@@ -55,3 +55,35 @@ app scope; campus-expansion and campus-studio; DevOps/Cloud/AI program;
 roles and permissions matrix; brand; testing/local-campus/deployment/studio
 engineering notes; UNKNOWN.md; accepted ADR-001/002/003. This request is recorded
 in docs/product/devsecops-project.md and ADR-004-private-devsecops-lab.md.
+
+## Hosted CI follow-up — 2026-09-20
+
+The [first DevSecOps run](https://github.com/LessGooo-26/lessgooo-platform/actions/runs/35502937423)
+received commit 6bd2598 successfully. Quality and source security passed,
+including containerized Semgrep. Docker build, runtime/negative HTTP checks
+and SPDX SBOM generation also passed. The final-image gate correctly failed:
+Trivy reported 59 HIGH/CRITICAL Debian package findings and 11 in npm's bundled
+dependencies. There were no secret findings in that image report.
+
+The corrective Dockerfile uses the same digest-pinned official Node 22 / Alpine
+3.24 image for build and runtime, and removes unused npm/Corepack/Yarn after
+installing production dependencies. The local preflight scan of that base,
+using the existing vulnerability database, found no HIGH/CRITICAL Alpine
+package findings; its 11 npm findings are in the runtime tooling being removed.
+This preflight is not a substitute for scanning the final built image with a
+fresh database in GitHub Actions.
+
+The smoke test now creates a SQLite backup on the writable volume and checks
+its integrity under the same read-only-root, non-root and dropped-capabilities
+settings. Workflow logs now list vulnerability IDs and affected versions while
+preserving Trivy's failure status. No CVE exclusions, severity reductions,
+ignore-unfixed option or continue-on-error bypass were added.
+
+Local workflow lint, Bash syntax and Dockerfile HIGH/CRITICAL configuration
+checks passed. A local rerun also found Vitest collecting third-party tests
+from the ignored diagram-tool cache: test exclusions now extend Vitest's defaults
+and explicitly exclude .local-data, preserving all 67 application tests.
+The definitive result for each corrective commit is its
+[DevSecOps run](https://github.com/LessGooo-26/lessgooo-platform/actions/workflows/ci.yml).
+Image publication/signing and Pages remain main-branch operations; EKS and
+other cloud execution remain unverified operator steps.
