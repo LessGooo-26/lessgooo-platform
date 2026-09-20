@@ -1,0 +1,9 @@
+configs:
+  params:
+    server.insecure: false
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+# Single-instance teaching install; upstream supplies internal Redis/controllers.

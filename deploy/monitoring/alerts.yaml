@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: campus-lab
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: campus-lab
+      rules:
+        - alert: CampusUnavailable
+          expr: probe_success{job="campus-health"} == 0 or absent(probe_success{job="campus-health"})
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Campus health probe failed or disappeared
+            description: Check campus Pods, PVC, NetworkPolicy and blackbox exporter using the README.
+        - alert: CampusRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="campus-lab",container="campus"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Campus repeatedly restarted
+            description: Inspect previous container logs, memory pressure and volume capacity.

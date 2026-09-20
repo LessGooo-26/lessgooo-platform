@@ -1,0 +1,60 @@
+grafana:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: monitoring
+  persistence:
+    enabled: true
+    storageClassName: campus-gp3
+    size: 2Gi
+prometheus:
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    retention: 3d
+    retentionSize: 7GB
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: campus-gp3
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+    additionalScrapeConfigs:
+      - job_name: campus-health
+        metrics_path: /probe
+        params:
+          module: [campus_http]
+        static_configs:
+          - targets:
+              - http://campus.campus-lab.svc.cluster.local:4173/api/health
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-prometheus-blackbox-exporter.monitoring.svc.cluster.local:9115
+# EKS does not expose these managed control-plane endpoints for scraping.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false

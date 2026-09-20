@@ -1,0 +1,21 @@
+rules:
+  - id: no-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Dynamic code evaluation is not allowed in campus code.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+  - id: no-shell-interpolation
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Use spawn/execFile with an argument array and no shell.
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: execSync(...)
+      - pattern: "spawn($CMD, $ARGS, { ..., shell: true, ... })"
+  - id: no-react-raw-html
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Render text with React; raw HTML needs an explicit sanitization design.
+    pattern: <$TAG dangerouslySetInnerHTML={$VALUE} />

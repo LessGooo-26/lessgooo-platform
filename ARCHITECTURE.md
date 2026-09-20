@@ -1,54 +1,29 @@
-# LESSGOOO Application Architecture
+# LESSGOOO application architecture
 
-Status: INITIAL
-Date: 2026-08-29
+Last reviewed: 2026-09-18. See [README](README.md#architecture-and-service-count)
+for diagrams, dependencies and connection details.
 
-## Phase 1
+| Surface | Runtime | Data | Deployment |
+|---|---|---|---|
+| Public website | React/TypeScript/Vite static files | Approved public content | GitHub Pages, ADR-001 |
+| Campus demo | One Node HTTP process, React assets and API | Embedded SQLite and attachment chunks | Local process/Compose, ADR-003 |
+| Teaching lab | Same campus container, one replica | Persistent SQLite volume | Private Kubernetes, ADR-004 |
 
-    User Browser
-         |
-         v
-    Static Web Frontend
-    React/TypeScript or repository-selected equivalent
-         |
-         v
-    GitHub Pages
+The campus is a modular monolith: HTTP, domain rules, storage, studio workers and
+integration adapters share one deployable runtime. There are **zero independent
+business microservices and one application service**. SQLite is an embedded
+library, not a database server. Transcription is an optional Python child process
+and is absent from the standard container.
 
-GitHub Actions performs validation/build/deployment.
+UI components do not own domain rules. Institutional copy is governed by docs/.
+The API filters demo personas, checks local Host/Origin, and uses transactions
+and optimistic versions. A persona selector is not authentication.
 
-## Future architecture
+Traefik, Argo CD and observability are infrastructure, not business microservices.
+Lab traffic enters through localhost port-forward. No public application load
+balancer, DNS name or production identity system is provisioned.
 
-    Browser
-       |
-       v
-    LESSGOOO Frontend
-       |
-       | HTTPS
-       v
-    Backend / API / Auth
-       |
-       v
-    Database / Storage
-
-## Boundaries
-
-GitHub Pages:
-- public static assets;
-- compiled frontend;
-- public content.
-
-Future backend/service:
-- authentication;
-- authorization;
-- private records;
-- payments;
-- attendance;
-- results;
-- file uploads;
-- administrative operations;
-- database writes.
-
-## Rule
-
-Do not select a permanent backend by assumption.
-Document the decision in an ADR first.
+Permanent backend/authentication selection remains
+[SECURITY-001](docs/UNKNOWN.md). Containerization does not resolve authentication,
+privacy, recovery or availability requirements. Do not scale SQLite to multiple
+writers.

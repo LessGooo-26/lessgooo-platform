@@ -38,6 +38,17 @@ export const videos = [
 ];
 export const practiceProjects = [
   {
+    id: "campus-devsecops",
+    title: "LESSGOOO DevSecOps capstone",
+    topic: "DevSecOps",
+    level: "Avancé",
+    repo: "https://github.com/LessGooo-26/lessgooo-platform",
+    mission:
+      "Docker Compose, GitHub Actions, SBOM, secrets, AWS EKS, Kubernetes, Traefik, Argo CD, Prometheus and Grafana: ten practical phases with evidence.",
+    deliverable:
+      "Architecture, secured pipeline, private deployment, monitoring and recovery evidence.",
+  },
+  {
     id: "compose-web",
     title: "Une application et sa base",
     topic: "Docker",

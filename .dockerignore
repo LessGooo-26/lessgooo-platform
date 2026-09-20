@@ -9,3 +9,5 @@ backups
 coverage
 test-results
 *.log
+
+reports/

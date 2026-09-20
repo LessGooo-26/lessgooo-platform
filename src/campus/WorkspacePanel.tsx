@@ -1,3 +1,4 @@
+import { DevSecOpsProject } from "./DevSecOpsProject";
 import { tx, localeCode } from "./lib/language";
 import { workspaceRequest, post } from "./lib/workspace-api";
 import {
@@ -134,9 +135,7 @@ export function Launchpad({
         <h2>
           {tx("De la curiosité")}
           <br />
-          {tx("aux")}
-          {" "}
-          <em>{tx("compétences.")}</em>
+          {tx("aux")} <em>{tx("compétences.")}</em>
         </h2>
         <p>
           {tx("Apprends. Construis. Partage tes progrès.")}
@@ -144,9 +143,7 @@ export function Launchpad({
           {tx("Ton prochain déclic commence ici.")}
         </p>
         <button className="launch-cta" onClick={() => go("courses")}>
-          {tx("Explorer")}
-          {" "}
-          {tx(c.lessons.length)}
+          {tx("Explorer")} {tx(c.lessons.length)}
           {tx(" leçons ")}
           <BookOpen size={18} />
         </button>
@@ -379,7 +376,7 @@ export function WorkspacePanel({
     );
   return null;
 }
-function Explore({ kids }: { kids: boolean }) {
+export function Explore({ kids }: { kids: boolean }) {
   const [query, setQuery] = useState(""),
     [topic, setTopic] = useState("Tous");
   const projects = practiceProjects.filter(
@@ -442,7 +439,7 @@ function Explore({ kids }: { kids: boolean }) {
           <h2>{tx("Construis un portfolio dont tu peux parler.")}</h2>
           <p>
             {tx(
-              "15 briefs de projets, de Docker à la fiabilité. Commence en local, documente tes décisions et montre les preuves.",
+              "Des projets de Docker à la fiabilité, avec un parcours DevSecOps en dix phases. Commence en local et montre les preuves.",
             )}
           </p>
         </div>
@@ -477,30 +474,35 @@ function Explore({ kids }: { kids: boolean }) {
           </select>
         </label>
       </div>
+      {projects.some((p) => p.id === "campus-devsecops") && (
+        <DevSecOpsProject />
+      )}
       <div className="project-catalog">
-        {projects.map((p, i) => (
-          <article className="panel project-card" key={p.id}>
-            <div className="project-meta">
-              <span>{tx(p.topic)}</span>
-              <small>{tx(p.level)}</small>
-            </div>
-            <span className="project-number">
-              {tx(String(i + 1).padStart(2, "0"))}
-            </span>
-            <h3>{tx(p.title)}</h3>
-            <p>{tx(p.mission)}</p>
-            <div className="deliverable">
-              <strong>{tx("À livrer")}</strong>
-              <p>{tx(p.deliverable)}</p>
-            </div>
-            <a href={p.repo} target="_blank" rel="noreferrer">
-              <GitBranch size={17} />
-              {tx(" Ouvrir le dépôt de référence")}
-              {tx(" ")}
-              <ExternalLink size={14} />
-            </a>
-          </article>
-        ))}
+        {projects
+          .filter((p) => p.id !== "campus-devsecops")
+          .map((p, i) => (
+            <article className="panel project-card" key={p.id}>
+              <div className="project-meta">
+                <span>{tx(p.topic)}</span>
+                <small>{tx(p.level)}</small>
+              </div>
+              <span className="project-number">
+                {tx(String(i + 1).padStart(2, "0"))}
+              </span>
+              <h3>{tx(p.title)}</h3>
+              <p>{tx(p.mission)}</p>
+              <div className="deliverable">
+                <strong>{tx("À livrer")}</strong>
+                <p>{tx(p.deliverable)}</p>
+              </div>
+              <a href={p.repo} target="_blank" rel="noreferrer">
+                <GitBranch size={17} />
+                {tx(" Ouvrir le dépôt de référence")}
+                {tx(" ")}
+                <ExternalLink size={14} />
+              </a>
+            </article>
+          ))}
       </div>
       {!projects.length && (
         <p>{tx("Aucun projet ne correspond à cette recherche.")}</p>

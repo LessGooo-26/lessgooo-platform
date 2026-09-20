@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: campus-config
+data:
+  NODE_ENV: production
+  CAMPUS_CONTAINER: "1"
+  CAMPUS_DATA_DIR: /app/.local-data
+  PORT: "4173"
+  NOTCHPAY_MODE: test
