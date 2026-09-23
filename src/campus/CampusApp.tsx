@@ -6,6 +6,8 @@ import {
 } from "./StudioPanel";
 import { tx, localeCode } from "./lib/language";
 import {
+  lazy,
+  Suspense,
   useState,
   useEffect,
   useCallback,
@@ -25,7 +27,6 @@ import {
   ArrowRight,
   Plus,
   Video,
-  Clock,
   Cloud,
   Terminal,
   Blocks,
@@ -36,7 +37,6 @@ import {
   Wallet,
   Globe,
   ShieldCheck,
-  CheckCircle2,
   FileText,
   MessageCircle,
   Search,
@@ -114,6 +114,8 @@ import {
   type Submission,
   type Stage,
 } from "@/lib/model";
+import { LessonLibrary } from "./LessonLibrary";
+const LessonReader = lazy(() => import("./LessonReader"));
 const navItems = [
   ["dashboard", "Vue d’ensemble", LayoutDashboard],
   ["search", "Recherche", Search],
@@ -1649,66 +1651,22 @@ export default function CampusApp() {
                         />
                       </label>
                     </div>
-                    <div className="course-grid">
-                      {visibleLessons.map((l) => {
-                        const validated = c.submissions.some(
-                          (s) =>
-                            s.lesson === l.id &&
-                            s.student === studentId &&
-                            s.status === "validated",
-                        );
-                        return (
-                          <article
-                            className={`course-card ${l.track}`}
-                            key={l.id}
-                          >
-                            <div className="course-top">
-                              <span
-                                className={`tile-icon ${l.track === "kids" ? "orange" : "blue"}`}
-                              >
-                                {l.track === "kids" ? <Blocks /> : <Terminal />}
-                              </span>
-                              <Badge
-                                tone={l.track === "kids" ? "orange" : "blue"}
-                              >
-                                {tx(trackLabel(l.track))}
-                              </Badge>
-                            </div>
-                            <div className="eyebrow">{tx(l.module)}</div>
-                            <h2>{tx(l.title)}</h2>
-                            <p>{tx(l.explanation).split("\n")[0]}</p>
-                            <div className="course-meta">
-                              <span>
-                                <Clock size={14} />
-                                {tx(l.minutes)}
-                                {tx("min")}
-                              </span>
-                              <span>{tx(l.level)}</span>
-                              {validated && (
-                                <span className="success">
-                                  <Check size={14} />
-                                  {tx("Validé")}
-                                </span>
-                              )}
-                            </div>
-                            <div className="course-actions">
-                              <Button
-                                variant="outline"
-                                onClick={() => setLesson(l)}
-                              >
-                                {tx("Ouvrir la leçon")}
-                                <ArrowRight size={16} />
-                              </Button>
-                              {teacher && (
-                                <button onClick={() => openLesson(l)}>
-                                  {tx("Modifier")}
-                                </button>
-                              )}
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
+                    <LessonLibrary
+                      lessons={visibleLessons}
+                      validated={
+                        new Set(
+                          c.submissions
+                            .filter(
+                              (s) =>
+                                s.student === studentId &&
+                                s.status === "validated",
+                            )
+                            .map((s) => s.lesson),
+                        )
+                      }
+                      openLesson={setLesson}
+                      searching={!!query.trim()}
+                    />
                     {!visibleLessons.length && (
                       <Empty title={tx("Aucune leçon trouvée")}>
                         {tx("Essayez un autre mot ou créez une leçon.")}
@@ -2491,7 +2449,9 @@ export default function CampusApp() {
                             )}
                           </li>
                           <li>
-                            {tx("Ajouter vos liens de réunion et replays autorisés.")}
+                            {tx(
+                              "Ajouter vos liens de réunion et replays autorisés.",
+                            )}
                           </li>
                           <li>
                             {tx(
@@ -2562,7 +2522,7 @@ export default function CampusApp() {
       )}
       {lesson && (
         <Dialog open onOpenChange={(b) => !b && setLesson(null)}>
-          <DialogContent className="detail-dialog">
+          <DialogContent className="detail-dialog lesson-dialog">
             <DialogHeader>
               <BrandLogo className="dialog-logo" />
               <DialogDescription>
@@ -2576,84 +2536,49 @@ export default function CampusApp() {
               </DialogDescription>
               <DialogTitle>{tx(lesson.title)}</DialogTitle>
             </DialogHeader>
-            <div className="lesson-body">
-              <section>
-                <h3>
-                  <BookOpen size={19} />
-                  {tx("Comprendre")}
-                </h3>
-                <p>{tx(lesson.explanation)}</p>
-              </section>
-              <section className="practice">
-                <h3>
-                  <Terminal size={19} />
-                  {tx("À toi de pratiquer")}
-                </h3>
-                <p>{tx(lesson.task)}</p>
-              </section>
-              <section>
-                <h3>
-                  <CheckCircle2 size={19} />
-                  {tx("Comment réussir")}
-                </h3>
-                <p>{tx(lesson.criteria)}</p>
-              </section>
-              {lesson.resource && (
-                <a
-                  className="button-link"
-                  href={lesson.resource}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {tx("Ouvrir la ressource")}
-                  <ExternalLink size={16} />
-                </a>
-              )}
-              <p className="footnote">
-                {tx(
-                  "Les travaux pratiques Linux, AWS et DevOps nécessitent un ordinateur et un environnement autorisé.",
-                )}
-              </p>
-              {["adult", "child"].includes(persona) ? (
-                <Button
-                  onClick={() => {
-                    setLesson(null);
-                    setEditor({
-                      title: "Remettre mon travail",
-                      description: lesson.title,
-                      action: "submit",
-                      values: { lesson: lesson.id, text: "", url: "" },
-                      fields: [
-                        {
-                          key: "text",
-                          label: "Ce que j’ai fait et compris",
-                          type: "textarea",
-                          required: true,
-                        },
-                        {
-                          key: "url",
-                          label: "Lien du projet (facultatif)",
-                          type: "url",
-                          hint: "Vous pourrez joindre un fichier après l’envoi, dans Travaux & corrections.",
-                        },
-                      ],
-                    });
-                  }}
-                >
-                  {tx("Remettre mon travail")}
-                  <ArrowRight size={17} />
-                </Button>
-              ) : teacher ? (
-                <Button
-                  onClick={() => {
-                    setLesson(null);
-                    openLesson(lesson);
-                  }}
-                >
-                  {tx("Modifier cette leçon")}
-                </Button>
-              ) : null}
-            </div>
+            <Suspense fallback={<p role="status">{tx("Chargement…")}</p>}>
+              <LessonReader key={lesson.id} lesson={lesson}>
+                {["adult", "child"].includes(persona) ? (
+                  <Button
+                    onClick={() => {
+                      setLesson(null);
+                      setEditor({
+                        title: "Remettre mon travail",
+                        description: lesson.title,
+                        action: "submit",
+                        values: { lesson: lesson.id, text: "", url: "" },
+                        fields: [
+                          {
+                            key: "text",
+                            label: "Ce que j’ai fait et compris",
+                            type: "textarea",
+                            required: true,
+                          },
+                          {
+                            key: "url",
+                            label: "Lien du projet (facultatif)",
+                            type: "url",
+                            hint: "Vous pourrez joindre un fichier après l’envoi, dans Travaux & corrections.",
+                          },
+                        ],
+                      });
+                    }}
+                  >
+                    {tx("Remettre mon travail")}
+                    <ArrowRight size={17} />
+                  </Button>
+                ) : teacher ? (
+                  <Button
+                    onClick={() => {
+                      setLesson(null);
+                      openLesson(lesson);
+                    }}
+                  >
+                    {tx("Modifier cette leçon")}
+                  </Button>
+                ) : null}
+              </LessonReader>
+            </Suspense>
           </DialogContent>
         </Dialog>
       )}

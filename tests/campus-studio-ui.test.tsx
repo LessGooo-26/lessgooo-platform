@@ -59,11 +59,9 @@ test("service page offers the verified public form and no invented consultation 
     "href",
     expect.stringContaining("docs.google.com/forms/d/e/"),
   );
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: /Private consultation Request a paid conversation/,
-    }),
-  );
+  fireEvent.change(screen.getByLabelText("Which service do you need?"), {
+    target: { value: "consultation" },
+  });
   expect(
     screen.getByText(/price, currency and session length are being set/),
   ).toBeInTheDocument();

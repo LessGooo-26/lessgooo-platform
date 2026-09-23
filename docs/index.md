@@ -10,6 +10,8 @@ DevSecOps teaching project requested on 2026-09-18: [scope](product/devsecops-pr
 Campus expansion approved on 2026-09-16: [learning, career and integrations](product/campus-expansion.md).
 Studio and service intake requested on 2026-09-17: [scope](product/campus-studio.md) and [operation](engineering/campus-studio.md).
 
+Guided lessons and professional service briefs requested on 2026-09-23: [scope](product/learning-experience.md) and [validation](quality/learning-experience-validation.md).
+
 ## Purpose
 
 Codex and human developers should use these documents to determine what

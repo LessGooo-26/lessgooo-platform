@@ -19,6 +19,23 @@ local transcription and service enquiries. The public website remains on GitHub 
 · [Argo CD](#argocd-gitops) · [monitoring](#prometheus-and-grafana)
 · [recovery](#recovery-cleanup-and-troubleshooting) · [student phases](#student-project-in-ten-phases).
 
+## Courses and service requests
+
+Open **Courses & lessons** in the campus: 57 distinct bundled lessons are organised
+into chapters. Each has a goal, illustrated flow, role and real-world scenario,
+guided practice, environment notes, an attached submission, a corrected knowledge
+check, interview answers and tool-specific documentation. YouTube references open
+only when clicked. The reader supports English/French and reduced motion. The
+original instructor assignment is retained alongside the guided practice.
+
+**Services & requests** collects country, time zone, reply language and a tailored
+brief for each of the six services, with a question and expectation for every field.
+The instructor can inspect the full brief in the local inbox. Use synthetic details
+in this demo; the public Google Form is a separate channel.
+
+See [learning experience](docs/product/learning-experience.md) and
+[what was verified](docs/quality/learning-experience-validation.md).
+
 ## Scope and evidence
 
 | State | Meaning |

@@ -8,7 +8,6 @@ import {
   Video,
   Mail,
   ArrowUpRight,
-  Send,
   Sparkles,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -27,6 +26,8 @@ import { practiceProjects, videos } from "./lib/resources";
 import { HelpTip } from "./WorkspacePanel";
 import { toast } from "sonner";
 import "./studio.css";
+import { ServiceIntakeFields, RequestBrief } from "./ServiceIntake";
+import { serviceQuestions, type ServiceId } from "./lib/service-intake";
 
 // Public form URL is verified after creation. No private Google credentials here.
 const publicServiceForm =
@@ -694,9 +695,9 @@ export function CampusSearch({
 }
 
 export function ServiceDesk({ persona }: { persona: Persona }) {
-  const { t, locale } = useLanguage(),
+  const { t } = useLanguage(),
     { data, error, load } = useStudio(persona);
-  const [service, setService] = useState("training"),
+  const [service, setService] = useState<ServiceId>("training"),
     [busy, setBusy] = useState(false),
     [receipt, setReceipt] = useState(""),
     [problem, setProblem] = useState(""),
@@ -725,7 +726,18 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
           phone: fields.get("phone"),
           message: fields.get("message"),
           consent: fields.get("consent") === "on",
-          language: locale,
+          language: fields.get("language"),
+          country: fields.get("country"),
+          city: fields.get("city"),
+          timezone: fields.get("timezone"),
+          contact: fields.get("contact"),
+          timeframe: fields.get("timeframe"),
+          answers: Object.fromEntries(
+            serviceQuestions[service].map((question) => [
+              question.id,
+              fields.get(`answer:${question.id}`) || "",
+            ]),
+          ),
         },
       );
       setReceipt(result.id);
@@ -852,41 +864,6 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
         </>
       ) : (
         <>
-          <div className="service-grid">
-            {services.map((s) => (
-              <button
-                key={s.id}
-                className={`service-choice ${s.color}`}
-                aria-pressed={service === s.id}
-                onClick={() => {
-                  setService(s.id);
-                  setReceipt("");
-                }}
-              >
-                <span className="studio-icon">
-                  {s.id === "consultation" ? <Video /> : <Sparkles />}
-                </span>
-                <strong>{t(s.en, s.fr)}</strong>
-                <p>{t(s.detailEn, s.detailFr)}</p>
-                <span>
-                  {service === s.id
-                    ? t("Selected ✓", "Sélectionné ✓")
-                    : t("Choose →", "Choisir →")}
-                </span>
-              </button>
-            ))}
-          </div>
-          {service === "consultation" && (
-            <div className="consultation-note">
-              <Video />
-              <p>
-                {t(
-                  "Private consultations are paid. The price, currency and session length are being set. You can request details now; no payment or booking is made here.",
-                  "Les consultations privées sont payantes. Le prix, la devise et la durée sont en cours de définition. Vous pouvez demander les détails ; aucun paiement ni réservation n’est effectué ici.",
-                )}
-              </p>
-            </div>
-          )}
           <section className="panel service-intake">
             <h2>
               {t("Tell us about your goal", "Parlez-nous de votre objectif")}
@@ -913,61 +890,11 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
               </div>
             ) : (
               <form className="studio-form" onSubmit={send}>
-                <label>
-                  {t("Your name", "Votre nom")}
-                  <input
-                    name="name"
-                    required
-                    minLength={2}
-                    maxLength={100}
-                    autoComplete="name"
-                  />
-                </label>
-                <label>
-                  Email
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    maxLength={254}
-                    autoComplete="email"
-                  />
-                </label>
-                <label>
-                  {t("Phone (optional)", "Téléphone (facultatif)")}
-                  <input
-                    name="phone"
-                    type="tel"
-                    maxLength={40}
-                    autoComplete="tel"
-                  />
-                </label>
-                <label className="studio-wide">
-                  {t(
-                    "What would you like help with?",
-                    "De quelle aide avez-vous besoin ?",
-                  )}
-                  <textarea
-                    name="message"
-                    required
-                    minLength={10}
-                    maxLength={4000}
-                    rows={4}
-                  />
-                </label>
-                <label className="studio-check">
-                  <input type="checkbox" name="consent" required />
-                  {t(
-                    "I agree to be contacted about this request.",
-                    "J’accepte d’être contacté au sujet de cette demande.",
-                  )}
-                </label>
-                <Button disabled={busy}>
-                  <Send size={16} />
-                  {busy
-                    ? t("Sending…", "Envoi…")
-                    : t("Submit request", "Envoyer la demande")}
-                </Button>
+                <ServiceIntakeFields
+                  service={service}
+                  changeService={setService}
+                  busy={busy}
+                />
               </form>
             )}
           </section>
@@ -1006,6 +933,7 @@ function RequestCard({
       <small>
         {new Date(r.created).toLocaleString()} · {r.language.toUpperCase()}
       </small>
+      <RequestBrief request={r} />
       <div className="studio-form">
         <label>
           {t("Status", "Statut")}

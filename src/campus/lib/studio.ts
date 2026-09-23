@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  countryCodes,
+  serviceQuestions,
+  validTimezone,
+} from "./service-intake";
 
 export type ImportJob = {
   id: string;
@@ -71,22 +76,57 @@ export const services = [
     color: "navy",
   },
 ] as const;
-export const serviceRequestSchema = z.object({
-  service: z.enum([
-    "training",
-    "interview",
-    "applications",
-    "kids",
-    "workshop",
-    "consultation",
-  ]),
-  name: z.string().trim().min(2).max(100),
-  email: z.string().trim().email().max(254),
-  phone: z.string().trim().max(40).default(""),
-  message: z.string().trim().min(10).max(4000),
-  language: z.enum(["en", "fr"]),
-  consent: z.literal(true),
-});
+export const serviceRequestSchema = z
+  .object({
+    service: z.enum([
+      "training",
+      "interview",
+      "applications",
+      "kids",
+      "workshop",
+      "consultation",
+    ]),
+    name: z.string().trim().min(2).max(100),
+    email: z.string().trim().email().max(254),
+    phone: z.string().trim().max(40).default(""),
+    message: z.string().trim().min(10).max(4000),
+    country: z
+      .string()
+      .refine((value) => countryCodes.includes(value), "Choose a country."),
+    city: z.string().trim().max(100).default(""),
+    timezone: z
+      .string()
+      .max(80)
+      .refine(validTimezone, "Choose a valid time zone."),
+    contact: z.enum(["email", "phone"]),
+    timeframe: z.enum(["exploring", "soon", "month", "flexible"]),
+    answers: z.record(z.string().trim().max(1500)).default({}),
+    language: z.enum(["en", "fr"]),
+    consent: z.literal(true),
+  })
+  .superRefine((request, context) => {
+    if (request.contact === "phone" && request.phone.length < 6)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: "Add a phone number or choose email.",
+      });
+    const questions = serviceQuestions[request.service];
+    for (const question of questions)
+      if (question.required && (request.answers[question.id] || "").length < 3)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["answers", question.id],
+          message: question.label.en,
+        });
+    for (const key of Object.keys(request.answers))
+      if (!questions.some((question) => question.id === key))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["answers", key],
+          message: "This question does not belong to the selected service.",
+        });
+  });
 export type ServiceRequest = z.infer<typeof serviceRequestSchema> & {
   id: string;
   owner: string;

@@ -61,11 +61,27 @@ test("service requests require consent, stay private and cannot be paid without 
       message: "Practice an interview with me",
       language: "en",
       consent: true,
+      country: "CM",
+      city: "Douala",
+      timezone: "Africa/Douala",
+      contact: "email",
+      timeframe: "flexible",
+      answers: {
+        context: "A local demo",
+        environment: "Docker on Linux",
+        attempts: "Read startup logs",
+        decision: "A diagnosis plan",
+      },
     };
     expect(() => s.request("adult", { ...input, consent: false })).toThrow();
     expect(() => s.request("child", input)).toThrow();
     const { id } = s.request("adult", input);
     expect(s.snapshot("teacher").requests).toHaveLength(1);
+    expect(s.snapshot("teacher").requests[0]).toMatchObject({
+      country: "CM",
+      timezone: "Africa/Douala",
+      answers: input.answers,
+    });
     expect(s.snapshot("parent").requests).toHaveLength(0);
     expect(s.snapshot("adult").requests[0]).not.toHaveProperty("amount");
     expect(() => s.request("adult", input)).toThrow(/already/);
