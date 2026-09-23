@@ -10,7 +10,7 @@ export function Footer() {
     <footer className="site-footer">
       <Container className="site-footer__inner">
         <div>
-          <Link className="site-name" to={publicRoutes.home}>LESSGOOO</Link>
+          <Link className="site-name" to={publicRoutes.home}><img className="site-logo" src={`${import.meta.env.BASE_URL}logo-lessgooo.png`} alt="LESSGOOO Academy"/></Link>
           <p>{content.shell.footerSummary}</p>
         </div>
         <nav aria-label={content.shell.footerNavigation}>

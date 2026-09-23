@@ -1,0 +1,2 @@
+# Optional local speech recognition runtime, separate from the web app.
+faster-whisper==1.2.1

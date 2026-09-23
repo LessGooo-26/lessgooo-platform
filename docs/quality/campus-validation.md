@@ -1,0 +1,23 @@
+# Validation du campus local — 2026-09-16
+
+- `npm run lint` : aucune erreur, trois avertissements Fast Refresh dans les primitives UI reprises du prototype.
+- `npm run typecheck` : réussi.
+- `npm test` : 48 tests réussis (17 du site public, 12 règles de démonstration, 3 tests SQLite/HTTP historiques et 16 tests d'extension). Couverture : confidentialité des notes, conflits de révision, inscriptions avec consentement, refus des rôles enfants, candidatures, fichiers arbitraires par blocs, limites et isolation, correction pendant upload, sauvegarde/restauration avec fichiers et notes, migration additive, couverture du catalogue, OAuth/CSRF/compte erroné, synchronisation Drive idempotente, chiffrement des configurations, rapprochement du montant/référence/identifiant et environnement de paiement, formats sandbox réels et refus des redirections externes.
+- `npm run build` : client statique et serveur Node compilés.
+- `npm run backup` : sauvegarde créée dans le dossier local ignoré par Git.
+- Audit npm après correction ciblée de Vitest : aucune vulnérabilité signalée.
+- Navigateur initial : remise d'un travail en vue élève, rechargement, correction en vue formateur. Avec l'extension du catalogue, le pourcentage est recalculé sur l'ensemble des leçons du parcours ; les anciennes validations restent conservées.
+- Extension : création, enregistrement et réouverture d'un carnet avec code, affichage en diapositives, inscription carrière fictive puis clôture de la demande, navigation mobile et libellés accessibles vérifiés. Drive est couvert par des tests simulés ; son consentement réel reste en cours à ce stade.
+- Notch Pay : clé sandbox configurée et chiffrée localement avec accord du propriétaire. Un lien de 100 XAF fictifs a été créé et relu avec succès, statut `pending` ; aucun paiement réel effectué. Le service réel retourne `reference` (référence prestataire) et `merchant_reference` (référence locale), sans champ `id`, et un champ sandbox booléen ou 0/1 selon l'opération. Le connecteur normalise ces formats et vérifie le montant, la devise, les deux références et le mode avant confirmation.
+- Écrans ordinateur, mobile 390 px et tablette 820 px : aucun débordement horizontal observé, logos chargés. L'en-tête tablette utilise deux lignes pour conserver le titre et le logo lisibles. Extension contrôlée à 390, 820 et 1280 px ; les premiers contrôles du navigateur n'avaient pas appliqué systématiquement la taille demandée à l'onglet visé.
+- Docker absent sur l'ordinateur ; compilation et démarrage du conteneur intégrés à CI pour validation sur GitHub.
+- CI GitHub du premier lot d'extension : [réussie](https://github.com/LessGooo-26/lessgooo-platform/actions/runs/35151832549), y compris construction et contrôle de santé du conteneur.
+- CI du correctif Notch Pay : [réussie](https://github.com/LessGooo-26/lessgooo-platform/actions/runs/35155367015). Client Google local créé avec accord, API Drive activée et compte propriétaire seul utilisateur de test. Consentement Drive encore à terminer ; KYC marchand Notch Pay non validé à ce stade. Ces activations restent distinctes des tests réussis du code.
+
+Documents consultés : index, organisation/lessgooo-overview, organisation/mission-vision-values, organisation/partners, product/product-vision, product/app-scope, product/features, product/workflows, product/non-goals, design/brand, engineering/deployment, engineering/git-workflow, engineering/testing, engineering/coding-standards, ARCHITECTURE, ADR-001, ADR-002 et UNKNOWN.
+
+Pour l'extension : product/campus-expansion, business/services, business/pricing, programs/devops-cloud-ai, programs/kids, users/roles, users/permissions et ADR-003. Compétences appliquées : lessgooo-product, lessgooo-ui, lessgooo-testing, lessgooo-deployment et google-drive.
+
+Fichiers principaux : `curriculum.ts` et `resources.ts` (contenus originaux/liens), `WorkspacePanel.tsx` et `workspace.css` (espaces de travail), `workspace-store.ts` (données et fichiers), `integrations.ts` (Drive/Notch Pay), `LearningPreview.tsx` (catalogue public), `.env.example`, README et sauvegarde. L'email d'intégration est fourni par le propriétaire ; aucun mot de passe de compte n'est stocké ou commité.
+
+Hypothèse de périmètre : reproduire localement le campus de démonstration fourni, sans le convertir implicitement en application multiutilisateur de production. Le logo du site est repris sans redessin ; les couleurs d'interface sont dérivées de cet asset. Les tarifs, identités et dates du prototype restent fictifs. Les permissions réelles, conditions commerciales, modalités de stage et la charte officielle restent UNKNOWN.

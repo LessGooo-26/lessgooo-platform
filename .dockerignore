@@ -1,0 +1,13 @@
+.git
+.reference-*
+node_modules
+dist
+dist-server
+.local-data
+backups
+.env*
+coverage
+test-results
+*.log
+
+reports/

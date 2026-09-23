@@ -3,6 +3,13 @@
 This directory is the authoritative product and organizational knowledge base
 for the LESSGOOO application.
 
+DevSecOps teaching project requested on 2026-09-18: [scope](product/devsecops-project.md),
+[private lab decision](decisions/ADR-004-private-devsecops-lab.md), and the
+[step-by-step README](../README.md).
+
+Campus expansion approved on 2026-09-16: [learning, career and integrations](product/campus-expansion.md).
+Studio and service intake requested on 2026-09-17: [scope](product/campus-studio.md) and [operation](engineering/campus-studio.md).
+
 ## Purpose
 
 Codex and human developers should use these documents to determine what

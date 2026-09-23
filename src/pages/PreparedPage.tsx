@@ -2,9 +2,11 @@ import { ProgramCard } from '../components/content/ProgramCard'
 import { Section } from '../components/ui/Section'
 import { useLocale } from '../i18n/LocaleContext'
 import { programRouteIds, publicRoutes, type PublicRouteId } from '../routes/public-routes'
+import { LearningPreview } from '../components/content/LearningPreview'
+import { ownerEmail } from '../campus/lib/workspace'
 
 export function PreparedPage({ routeId }: { routeId: Exclude<PublicRouteId, 'home'> }) {
-  const { content } = useLocale()
+  const { content, locale } = useLocale()
   const page = content.preparedPages[routeId]
 
   return (
@@ -24,6 +26,8 @@ export function PreparedPage({ routeId }: { routeId: Exclude<PublicRouteId, 'hom
           </div>
         </Section>
       ) : null}
+      {['kids','devopsCloudAi','linux','programs'].includes(routeId) && <LearningPreview track={routeId==='kids'?'kids':routeId==='programs'?undefined:'devops'} expanded/>}
+      {routeId==='contact' && <Section><div className="public-career-callout"><div><h2>{locale==='fr'?'Construisons ton parcours.':'Let’s build your learning path.'}</h2><p>{locale==='fr'?'Formation, préparation aux entretiens ou accompagnement de ton enfant : explique-nous ton objectif.':'Training, interview preparation or your child’s learning: tell us about your goal.'}</p></div><a href={`mailto:${ownerEmail}`}>{ownerEmail}</a></div></Section>}
     </>
   )
 }

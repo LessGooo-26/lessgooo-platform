@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { publicRoutes } from './routes/public-routes'
 
@@ -14,6 +14,15 @@ function renderApp(initialPath = '/') {
 }
 
 describe('public website', () => {
+  beforeEach(() => localStorage.removeItem('lessgooo-language'))
+  it('remembers an explicit French choice across visits', async () => {
+    const user = userEvent.setup()
+    const first = renderApp()
+    await user.click(screen.getByRole('button', { name: 'Français' }))
+    first.unmount()
+    renderApp()
+    expect(screen.getByRole('heading', { name: 'Apprendre la technologie par la pratique.' })).toBeInTheDocument()
+  })
   it('renders the semantic shell and confirmed Home content', () => {
     renderApp()
     expect(screen.getByRole('banner')).toBeInTheDocument()

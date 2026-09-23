@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: campus
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: campus
+  ports:
+    - name: http
+      port: 4173
+      targetPort: http

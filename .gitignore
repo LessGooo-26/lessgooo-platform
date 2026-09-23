@@ -7,4 +7,11 @@ coverage/
 !.env.example
 .DS_Store
 *.log
+.reference-*/
+dist-server/
+.local-data/
+backups/
+test-results/
 
+
+reports/

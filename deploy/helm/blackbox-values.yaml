@@ -1,0 +1,17 @@
+config:
+  modules:
+    campus_http:
+      prober: http
+      timeout: 5s
+      http:
+        preferred_ip_protocol: ip4
+        valid_status_codes: [200]
+        headers:
+          Host: "127.0.0.1:4173"
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

@@ -13,9 +13,10 @@ export function Header() {
     <header className="site-header">
       <Container className="site-header__inner">
         <Link className="site-name" to={publicRoutes.home} aria-label={content.shell.homeLabel}>
-          LESSGOOO
+          <img className="site-logo" src={`${import.meta.env.BASE_URL}logo-lessgooo.png`} alt="LESSGOOO Academy"/>
         </Link>
         <Navigation />
+        <a className="campus-link" href={`${import.meta.env.BASE_URL}campus.html`}>Campus</a>
         <LanguageSwitcher />
         <MobileNavigation />
       </Container>
