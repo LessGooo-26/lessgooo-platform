@@ -37,12 +37,14 @@ export function ServiceIntakeFields({
   course = "",
   changeCourse = () => {},
   busy,
+  publicDraft = false,
 }: {
   service: ServiceId;
   changeService: (id: ServiceId) => void;
   course?: CourseId | "";
   changeCourse?: (course: CourseId | "") => void;
   busy: boolean;
+  publicDraft?: boolean;
 }) {
   const { t, locale } = useLanguage();
   const selectedCourse = findCourse(course);
@@ -446,10 +448,15 @@ export function ServiceIntakeFields({
       <div className="intake-next">
         <h3>{t("What happens next?", "Quelle est la suite ?")}</h3>
         <p>
-          {t(
-            "Your brief is available for review in the local inbox. The next conversation can clarify scope, availability and any fee. Sending a request does not create a booking.",
-            "Votre demande est disponible dans la boîte locale pour étude. Un échange pourra préciser le périmètre, les disponibilités et le tarif éventuel. L’envoi ne crée pas de réservation.",
-          )}
+          {publicDraft
+            ? t(
+                "Review your brief, then copy it, download it or open your email app. This page does not send or save requests. You must send the email yourself.",
+                "Relisez votre demande, puis copiez-la, téléchargez-la ou ouvrez votre messagerie. Cette page n’envoie ni n’enregistre les demandes. Vous devez envoyer l’email vous-même.",
+              )
+            : t(
+                "Your brief is available for review in the local inbox. The next conversation can clarify scope, availability and any fee. Sending a request does not create a booking.",
+                "Votre demande est disponible dans la boîte locale pour étude. Un échange pourra préciser le périmètre, les disponibilités et le tarif éventuel. L’envoi ne crée pas de réservation.",
+              )}
         </p>
       </div>
       <label className="studio-check">
@@ -463,7 +470,9 @@ export function ServiceIntakeFields({
         <Send size={16} />
         {busy
           ? t("Sending…", "Envoi…")
-          : t("Submit request", "Envoyer la demande")}
+          : publicDraft
+            ? t("Review my enquiry", "Relire ma demande")
+            : t("Submit request", "Envoyer la demande")}
       </Button>
     </>
   );

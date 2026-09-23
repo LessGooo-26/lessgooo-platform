@@ -29,9 +29,26 @@ only when clicked. The reader supports English/French and reduced motion. The
 original instructor assignment is retained alongside the guided practice.
 
 **Services & requests** collects country, time zone, reply language and a tailored
-brief for each of the six services, with a question and expectation for every field.
+brief for each of the seven request types, with a question and expectation for every field.
 The instructor can inspect the full brief in the local inbox. Use synthetic details
 in this demo; the public Google Form is a separate channel.
+
+The public **Programs** and **Company services** pages share the nine-area catalog:
+DevOps, cloud, cybersecurity, Linux administration, website development with AI,
+modern secretarial practice, AI infographics, AI graphic design and AI automation.
+Each profile explains prerequisites, four practice phases, an example project and
+company deliverables. These are course outlines and starter activities; the 57
+existing lessons remain the authored practice library. Kids, IoT and language
+program pages remain available.
+
+Public contact forms prepare a validated brief entirely in the browser. Visitors
+review it, copy or download it, then choose to open their own email app and send it.
+The static website never claims it saved or sent a request. The campus inbox
+still requires the local backend. Language preference is shared across both
+interfaces on the same origin.
+
+See the [whole-site review](docs/quality/site-review-validation.md) for coverage
+and outstanding production/integration requirements.
 
 See [learning experience](docs/product/learning-experience.md) and
 [what was verified](docs/quality/learning-experience-validation.md).

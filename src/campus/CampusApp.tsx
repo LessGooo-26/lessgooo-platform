@@ -1,4 +1,8 @@
-import type { CourseInquiry } from "./lib/course-catalog";
+import {
+  findCourse,
+  type CourseId,
+  type CourseInquiry,
+} from "./lib/course-catalog";
 import { mediaUrl } from "./lib/workspace-api";
 import {
   HomeworkBoard,
@@ -483,6 +487,7 @@ export default function CampusApp() {
     [filter, setFilter] = useState("all"),
     [query, setQuery] = useState(""),
     [courseView, setCourseView] = useState("catalog"),
+    [selectedCourse, setSelectedCourse] = useState<CourseId | undefined>(),
     [serviceInquiry, setServiceInquiry] = useState<CourseInquiry | undefined>(),
     [editor, setEditor] = useState<FormConfig | null>(null),
     [lesson, setLesson] = useState<Lesson | null>(null),
@@ -532,6 +537,10 @@ export default function CampusApp() {
         history.replaceState(null, "", `#${pageRef.current}`);
         return;
       }
+      setLesson(null);
+      setSession(null);
+      setSubmission(null);
+      setSelectedCourse(undefined);
       setPage(section);
       setQuery("");
       setFilter("all");
@@ -588,10 +597,12 @@ export default function CampusApp() {
     )
       return;
     setPage(p);
-    history.replaceState(null, "", `#${p}`);
+    if (location.hash !== `#${p}`) history.pushState(null, "", `#${p}`);
+    setSelectedCourse(undefined);
     setQuery("");
     setFilter("all");
     window.scrollTo({ top: 0 });
+    return true;
   };
   const switchPersona = (p: Persona) => {
     if (busy) return;
@@ -603,6 +614,7 @@ export default function CampusApp() {
       return;
     personaRef.current = p;
     setServiceInquiry(undefined);
+    setSelectedCourse(undefined);
     setPersona(p);
     try {
       localStorage.setItem("lessgooo-persona", p);
@@ -1129,7 +1141,14 @@ export default function CampusApp() {
     <SidebarProvider
       style={{ "--sidebar-width": "254px" } as React.CSSProperties}
     >
-      <a className="skip-link" href="#campus-main">
+      <a
+        className="skip-link"
+        href="#campus-main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("campus-main")?.focus();
+        }}
+      >
         {tx("Aller au contenu")}
       </a>
       <Toaster richColors position="bottom-right" />
@@ -1214,7 +1233,8 @@ export default function CampusApp() {
             )}
           </HelpTip>
         </div>
-        <main
+        <div
+          tabIndex={-1}
           id="campus-main"
           className={
             "content" +
@@ -1294,8 +1314,14 @@ export default function CampusApp() {
             <div className="error-box">
               <h2>{tx("Le campus n’a pas pu être chargé")}</h2>
               <p>{tx(error)}</p>
+              <p>
+                {t(
+                  "You can still browse the public courses and prepare an enquiry. Saved campus work needs the local application server.",
+                  "Vous pouvez consulter les formations publiques et préparer une demande. Vos travaux enregistrés nécessitent le serveur local de l’application.",
+                )}
+              </p>
               <Button onClick={() => reload()}>{tx("Réessayer")}</Button>
-              <a href={`${import.meta.env.BASE_URL}index.html`}>
+              <a href={`${import.meta.env.BASE_URL}index.html#/programs`}>
                 {tx("Ouvrir le site public")}
               </a>
             </div>
@@ -1688,6 +1714,8 @@ export default function CampusApp() {
                         fallback={<p>{t("Loading…", "Chargement…")}</p>}
                       >
                         <CourseCatalog
+                          key={selectedCourse || "browse"}
+                          initialCourse={selectedCourse}
                           lessons={c.lessons}
                           openLesson={setLesson}
                           onInquiry={(inquiry) => {
@@ -2313,7 +2341,35 @@ export default function CampusApp() {
                   </div>
                 )}
                 {page === "search" && (
-                  <CampusSearch persona={persona} campus={c} go={go} />
+                  <CampusSearch
+                    persona={persona}
+                    campus={c}
+                    go={go}
+                    openResult={(result) => {
+                      if (!go(result.page)) return;
+                      if (result.type === "courses") {
+                        setCourseView("catalog");
+                        setSelectedCourse(findCourse(result.id)?.id);
+                      }
+                      if (result.type === "lessons") {
+                        setCourseView("lessons");
+                        setLesson(
+                          c.lessons.find((item) => item.id === result.id) ||
+                            null,
+                        );
+                      }
+                      if (result.type === "homework")
+                        setSubmission(
+                          c.submissions.find((item) => item.id === result.id) ||
+                            null,
+                        );
+                      if (result.type === "classes")
+                        setSession(
+                          c.sessions.find((item) => item.id === result.id) ||
+                            null,
+                        );
+                    }}
+                  />
                 )}
                 {page === "services" && (
                   <ServiceDesk
@@ -2511,7 +2567,7 @@ export default function CampusApp() {
             </span>
             <span>{tx("Live · DevOps · Kids")}</span>
           </footer>
-        </main>
+        </div>
       </SidebarInset>
       {editor && (
         <Editor

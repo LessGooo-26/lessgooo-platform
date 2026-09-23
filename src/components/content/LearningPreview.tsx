@@ -1,3 +1,5 @@
+import { tx } from "../../campus/lib/language";
+import { documentationFor } from "../../campus/lib/lesson-references";
 import { curriculum } from "../../campus/lib/curriculum";
 import { ownerEmail } from "../../campus/lib/workspace";
 import { useLocale } from "../../i18n/LocaleContext";
@@ -33,8 +35,8 @@ export function LearningPreview({
         </h2>
         <p>
           {fr
-            ? "Des explications, des exercices et des critères de réussite. Le catalogue de démarrage ci-dessous est disponible en français."
-            : "Explanations, hands-on exercises and clear success criteria. This starting catalogue is currently available in French."}
+            ? "Des explications, des exercices et des critères de réussite pour progresser étape par étape."
+            : "Explanations, hands-on exercises and clear success criteria to progress step by step."}
         </p>
         <a
           className="public-campus-button"
@@ -49,20 +51,24 @@ export function LearningPreview({
             <span className="public-module-number">
               {String(i + 1).padStart(2, "0")}
             </span>
-            <h3>{module}</h3>
+            <h3>{tx(module)}</h3>
             {lessons
               .filter((l) => l.module === module)
               .map((l) => (
                 <details key={l.id}>
-                  <summary>{l.title}</summary>
-                  <p>{l.explanation}</p>
+                  <summary>{tx(l.title)}</summary>
+                  <p>{tx(l.explanation)}</p>
                   <strong>
                     {fr ? "À toi de pratiquer" : "Your practice task"}
                   </strong>
-                  <p>{l.task}</p>
+                  <p>{tx(l.task)}</p>
                   <strong>{fr ? "À remettre" : "Evidence to submit"}</strong>
-                  <p>{l.criteria}</p>
-                  <a href={l.resource} target="_blank" rel="noreferrer">
+                  <p>{tx(l.criteria)}</p>
+                  <a
+                    href={documentationFor(l.id)[0]?.url || l.resource}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     {fr
                       ? "Documentation de référence"
                       : "Reference documentation"}{" "}
@@ -75,7 +81,9 @@ export function LearningPreview({
       </div>
       <div className="public-career-callout">
         <div>
-          <span>LESSGOOO CAREER LAB</span>
+          <span>
+            {fr ? "ATELIER CARRIÈRE LESSGOOO" : "LESSGOOO CAREER LAB"}
+          </span>
           <h3>
             {fr
               ? "Prépare ton prochain entretien."

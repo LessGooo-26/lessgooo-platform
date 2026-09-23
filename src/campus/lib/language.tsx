@@ -7,11 +7,20 @@ try {
 } catch {
   /* Storage may be disabled. */
 }
+function currentLanguage(): "en" | "fr" {
+  try {
+    return localStorage.getItem("lessgooo-language") === "fr" ? "fr" : "en";
+  } catch {
+    return language;
+  }
+}
 const listeners = new Set<() => void>();
 const subscribe = (callback: () => void) => {
   listeners.add(callback);
+  window.addEventListener("storage", callback);
   return () => {
     listeners.delete(callback);
+    window.removeEventListener("storage", callback);
   };
 };
 export function setLanguage(value: "en" | "fr") {
@@ -24,10 +33,11 @@ export function setLanguage(value: "en" | "fr") {
   }
   listeners.forEach((callback) => callback());
 }
-export const localeCode = () => (language === "en" ? "en-GB" : "fr-FR");
+export const localeCode = () =>
+  currentLanguage() === "en" ? "en-GB" : "fr-FR";
 export function tx<T>(value: T): T {
   if (typeof value !== "string") return value;
-  if (language === "fr")
+  if (currentLanguage() === "fr")
     return ((french as Record<string, string>)[value] ?? value) as T;
   const found = (english as Record<string, string>)[value];
   if (found !== undefined) return found as T;
@@ -62,7 +72,7 @@ export function tx<T>(value: T): T {
 export function useLanguage() {
   const locale = useSyncExternalStore(
     subscribe,
-    () => language,
+    currentLanguage,
     () => "en" as const,
   );
   return {

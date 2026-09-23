@@ -24,6 +24,8 @@ import {
 import { Button } from "./components/ui/button";
 import {
   courseCatalog,
+  findCourse,
+  type CourseId,
   startingChecklist,
   type CourseArea,
   type CourseInquiry,
@@ -48,17 +50,21 @@ export default function CourseCatalog({
   openLesson,
   onInquiry,
   companyOnly = false,
+  initialCourse,
 }: {
   lessons?: Lesson[];
   openLesson?: (lesson: Lesson) => void;
   onInquiry: (inquiry: CourseInquiry) => void;
   companyOnly?: boolean;
+  initialCourse?: CourseId;
 }) {
   const { locale, t } = useLanguage();
   const trigger = useRef<HTMLButtonElement | null>(null);
   const handingOff = useRef(false);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<CourseArea | null>(null);
+  const [selected, setSelected] = useState<CourseArea | null>(
+    () => findCourse(initialCourse || "") || null,
+  );
   const copy = (value: CourseText) => value[locale];
   const normalized = (value: string) =>
     value

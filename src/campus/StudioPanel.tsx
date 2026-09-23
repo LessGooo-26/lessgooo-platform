@@ -1,4 +1,5 @@
 import {
+  courseCatalog,
   findCourse,
   type CourseId,
   type CourseInquiry,
@@ -41,11 +42,10 @@ import "./studio.css";
 import { ServiceIntakeFields, RequestBrief } from "./ServiceIntake";
 import { questionsFor, type ServiceId } from "./lib/service-intake";
 
+import { publicServiceForm } from "../content/contact";
+
 const CourseCatalog = lazy(() => import("./CourseCatalog"));
 
-// Public form URL is verified after creation. No private Google credentials here.
-const publicServiceForm =
-  "https://docs.google.com/forms/d/e/1FAIpQLSeXMG4O9HBeEPy6rty_wLkPMXgmyz9lqpOhVdll3URqm4XKrg/viewform";
 type StudioData = {
   ready: boolean | null;
   imports: ImportJob[];
@@ -365,7 +365,9 @@ export function VideoTranscript({
             )}
             placeholder={t("Find a word…", "Chercher un mot…")}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+            }}
           />
           <div className="transcript-lines">
             {tr.segments
@@ -445,7 +447,7 @@ export function LiveClassTools() {
   );
 }
 
-type SearchResult = {
+export type SearchResult = {
   id: string;
   title: string;
   text: string;
@@ -457,18 +459,23 @@ export function CampusSearch({
   persona,
   campus,
   go,
+  openResult,
 }: {
   persona: Persona;
   campus: Campus;
   go: (page: string) => void;
+  openResult?: (result: SearchResult) => void;
 }) {
   const { t, locale } = useLanguage();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
+    [visibleCount, setVisibleCount] = useState(80),
     [personal, setPersonal] = useState<SearchResult[]>([]),
     [error, setError] = useState("");
   useEffect(() => {
     let active = true;
+    setPersonal([]);
+    setError("");
     Promise.all([
       workspaceRequest<{ notes: Note[]; media: Media[]; galleries: Gallery[] }>(
         "/api/workspace",
@@ -491,8 +498,8 @@ export function CampusSearch({
             })),
             ...d.media.map((m) => ({
               id: m.id,
-              title: m.name,
-              text: `${m.type} ${transcripts.find((t) => t.id === `transcript:${m.id}`)?.text || ""}`,
+              title: m.label || m.name,
+              text: `${m.name} ${m.label || ""} ${m.type} ${transcripts.find((t) => t.id === `transcript:${m.id}`)?.text || ""}`,
               page: "library",
               type: "files",
             })),
@@ -513,6 +520,15 @@ export function CampusSearch({
     };
   }, [persona]);
   const all: SearchResult[] = [
+    ...(persona === "child"
+      ? []
+      : courseCatalog.map((area) => ({
+          id: area.id,
+          title: area.title[locale],
+          text: area.description[locale] + " " + area.audience[locale],
+          page: "courses",
+          type: "courses",
+        }))),
     ...campus.lessons.map((l) => ({
       id: l.id,
       title: tx(l.title),
@@ -565,18 +581,24 @@ export function CampusSearch({
       : []),
     ...personal,
   ];
-  const words = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+  const normalize = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase();
+  const words = normalize(query).trim().split(/\s+/).filter(Boolean);
   const results = all.filter(
     (r) =>
       (filter === "all" || r.type === filter) &&
-      words.every((word) =>
-        `${r.title} ${r.text}`.toLocaleLowerCase().includes(word),
-      ),
+      words.every((word) => normalize(`${r.title} ${r.text}`).includes(word)),
   );
   const web = (images = false) =>
     `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=${locale}${images ? "&udm=2" : ""}`;
   const types = [
     ["all", "Everything", "Tout"],
+    ...(persona === "child"
+      ? []
+      : [["courses", "Course areas", "Domaines de formation"]]),
     ["lessons", "Lessons", "Leçons"],
     ["files", "Files", "Fichiers"],
     ["notes", "Notes", "Notes"],
@@ -611,7 +633,10 @@ export function CampusSearch({
               "Essayez Docker, cloud, devoir…",
             )}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setVisibleCount(80);
+            }}
           />
         </label>
         <div className="search-filters">
@@ -619,7 +644,10 @@ export function CampusSearch({
             <button
               key={id}
               aria-pressed={filter === id}
-              onClick={() => setFilter(id)}
+              onClick={() => {
+                setFilter(id);
+                setVisibleCount(80);
+              }}
             >
               {t(en, fr)}
             </button>
@@ -669,7 +697,7 @@ export function CampusSearch({
         {results.length} {t("campus results", "résultats dans le campus")}
       </p>
       <div className="search-results">
-        {results.slice(0, 80).map((r) => (
+        {results.slice(0, visibleCount).map((r) => (
           <article className="panel search-result" key={`${r.type}-${r.id}`}>
             <span className="badge">
               {t(
@@ -684,8 +712,14 @@ export function CampusSearch({
               {r.text.slice(0, 240)}
               {r.text.length > 240 ? "…" : ""}
             </p>
-            <Button variant="outline" onClick={() => go(r.page)}>
-              {t("Open section", "Ouvrir la rubrique")}{" "}
+            <Button
+              variant="outline"
+              onClick={() => (openResult ? openResult(r) : go(r.page))}
+            >
+              {openResult &&
+              ["courses", "lessons", "homework", "classes"].includes(r.type)
+                ? t("Open result", "Ouvrir le résultat")
+                : t("Open section", "Ouvrir la rubrique")}{" "}
               <ArrowUpRight size={16} />
             </Button>
             {r.url && (
@@ -696,6 +730,14 @@ export function CampusSearch({
           </article>
         ))}
       </div>
+      {results.length > visibleCount && (
+        <Button
+          variant="outline"
+          onClick={() => setVisibleCount((count) => count + 80)}
+        >
+          {t("Show more results", "Afficher plus de résultats")}
+        </Button>
+      )}
       {!results.length && (
         <p className="friendly-empty">
           {t(

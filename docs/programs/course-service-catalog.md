@@ -28,7 +28,7 @@ Training and company project requests can select an area. Company projects requi
 
 ## Unconfirmed commercial details
 
-Prices, duration, dates, formal entry qualifications, certifications, software licenses and delivery commitments remain UNKNOWN. A request is an inquiry, not a booking, payment or service-level agreement. Company deliverables are examples to scope, not guaranteed package inclusions. Production credentials and private company data do not belong in the demo form. The existing external public form is unchanged; the expanded intake is in the local campus.
+Prices, duration, dates, formal entry qualifications, certifications, software licenses and delivery commitments remain UNKNOWN. A request is an inquiry, not a booking, payment or service-level agreement. Company deliverables are examples to scope, not guaranteed package inclusions. Production credentials and private company data do not belong in the demo form. The existing external public form is unchanged; the local campus stores the expanded intake. The public website also offers a browser-only draft of the same tailored questions; visitors review, copy/download or open their own email application and send it themselves. The static site neither stores nor sends requests.
 
 ## Implementation source
 

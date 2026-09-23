@@ -3,9 +3,9 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
+import { useLanguage } from "../campus/lib/language";
 import { siteContent, type Locale } from "../content/site-content";
 
 type LocaleContextValue = {
@@ -17,26 +17,14 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => {
-    try {
-      return localStorage.getItem("lessgooo-language") === "fr" ? "fr" : "en";
-    } catch {
-      return "en";
-    }
-  });
-
+  const { locale, setLanguage: setLocale } = useLanguage();
   useEffect(() => {
     document.documentElement.lang = locale;
-    try {
-      localStorage.setItem("lessgooo-language", locale);
-    } catch {
-      /* Use the in-memory choice. */
-    }
   }, [locale]);
 
   const value = useMemo(
     () => ({ locale, setLocale, content: siteContent[locale] }),
-    [locale],
+    [locale, setLocale],
   );
 
   return (

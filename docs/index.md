@@ -79,3 +79,7 @@ Use this order as a starting point:
 If a conflict affects business behavior, record it in `UNKNOWN.md`.
 
 Courses and company services expanded on 2026-09-23: [catalog scope](programs/course-service-catalog.md).
+
+Whole-site review requested on 2026-09-23: [scope and findings](product/site-review.md).
+
+- Whole-site validation and feature coverage: [quality/site-review-validation.md](quality/site-review-validation.md).

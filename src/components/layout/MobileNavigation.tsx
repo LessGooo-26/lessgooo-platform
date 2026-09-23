@@ -1,22 +1,32 @@
-import { useEffect, useId, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { useLocale } from '../../i18n/LocaleContext'
-import { primaryNavigationIds, publicRoutes } from '../../routes/public-routes'
-import { Button } from '../ui/Button'
+import { useEffect, useId, useRef, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useLocale } from "../../i18n/LocaleContext";
+import { primaryNavigationIds, publicRoutes } from "../../routes/public-routes";
+import { Button } from "../ui/Button";
 
 export function MobileNavigation() {
-  const [isOpen, setIsOpen] = useState(false)
-  const menuId = useId()
-  const location = useLocation()
-  const { content } = useLocale()
+  const [isOpen, setIsOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  const location = useLocation();
+  const { content } = useLocale();
 
   useEffect(() => {
-    setIsOpen(false)
-  }, [location.pathname])
+    setIsOpen(false);
+  }, [location.pathname]);
 
   return (
-    <div className="mobile-navigation">
+    <div
+      className="mobile-navigation"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          setIsOpen(false);
+          toggle.current?.focus();
+        }
+      }}
+    >
       <Button
+        ref={toggle}
         variant="secondary"
         type="button"
         aria-expanded={isOpen}
@@ -25,16 +35,21 @@ export function MobileNavigation() {
       >
         {isOpen ? content.shell.closeMenu : content.shell.openMenu}
       </Button>
-      <nav id={menuId} aria-label={content.shell.mobileNavigation} hidden={!isOpen}>
+      <nav
+        id={menuId}
+        aria-label={content.shell.mobileNavigation}
+        hidden={!isOpen}
+      >
         <ul className="navigation-list navigation-list--mobile">
           {primaryNavigationIds.map((routeId) => (
             <li key={routeId}>
-              <NavLink to={publicRoutes[routeId]}>{content.navigation[routeId]}</NavLink>
+              <NavLink to={publicRoutes[routeId]}>
+                {content.navigation[routeId]}
+              </NavLink>
             </li>
           ))}
         </ul>
       </nav>
     </div>
-  )
+  );
 }
-

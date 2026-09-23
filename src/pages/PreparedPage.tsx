@@ -1,34 +1,96 @@
-import { ProgramCard } from '../components/content/ProgramCard'
-import { Section } from '../components/ui/Section'
-import { useLocale } from '../i18n/LocaleContext'
-import { programRouteIds, publicRoutes, type PublicRouteId } from '../routes/public-routes'
-import { LearningPreview } from '../components/content/LearningPreview'
-import { ownerEmail } from '../campus/lib/workspace'
-
-export function PreparedPage({ routeId }: { routeId: Exclude<PublicRouteId, 'home'> }) {
-  const { content, locale } = useLocale()
-  const page = content.preparedPages[routeId]
-
+import { lazy, Suspense } from "react";
+import { Link } from "react-router-dom";
+import { ProgramCard } from "../components/content/ProgramCard";
+import { CourseDirectory } from "../components/content/CourseDirectory";
+import { Section } from "../components/ui/Section";
+import { useLocale } from "../i18n/LocaleContext";
+import { publicRoutes, type PublicRouteId } from "../routes/public-routes";
+import { LearningPreview } from "../components/content/LearningPreview";
+import type { CourseId } from "../campus/lib/course-catalog";
+import { PublicGuidance } from "../components/content/PublicGuidance";
+const ContactEnquiry = lazy(() =>
+  import("./ContactEnquiry").then((m) => ({ default: m.ContactEnquiry })),
+);
+const areas: Partial<Record<PublicRouteId, CourseId[]>> = {
+  devopsCloudAi: ["devops", "cloud", "ai-automation"],
+  linux: ["linux"],
+  webDevelopment: ["ai-web"],
+  modernSecretariat: ["secretariat"],
+};
+export function PreparedPage({
+  routeId,
+}: {
+  routeId: Exclude<PublicRouteId, "home">;
+}) {
+  const { content, locale } = useLocale();
+  const page = content.preparedPages[routeId],
+    fr = locale === "fr";
   return (
     <>
       <Section className="page-intro" labelledBy="page-title">
         <p className="eyebrow">{page.eyebrow}</p>
         <h1 id="page-title">{page.title}</h1>
         <p className="page-intro__description">{page.description}</p>
+        {routeId === "programs" && (
+          <Link to="/faq">
+            {fr
+              ? "Je ne sais pas par où commencer"
+              : "Help me find where to start"}{" "}
+            →
+          </Link>
+        )}
       </Section>
-      {routeId === 'programs' ? (
+      {(routeId === "programs" || routeId === "services" || areas[routeId]) && (
         <Section tone="subtle">
+          <CourseDirectory
+            company={routeId === "services"}
+            ids={areas[routeId]}
+          />
+        </Section>
+      )}
+      {routeId === "programs" && (
+        <Section>
+          <h2>{fr ? "D’autres façons d’apprendre" : "More ways to learn"}</h2>
           <div className="program-grid">
-            {programRouteIds.map((programRouteId) => {
-              const program = content.programs.find(({ routeId: id }) => id === programRouteId)!
-              return <ProgramCard key={program.routeId} title={program.title} description={program.description} linkLabel={content.home.learnMore} to={publicRoutes[program.routeId]} />
-            })}
+            {content.programs
+              .filter((p) =>
+                ["kids", "iotArduino", "languages"].includes(p.routeId),
+              )
+              .map((p) => (
+                <ProgramCard
+                  key={p.routeId}
+                  title={p.title}
+                  description={p.description}
+                  linkLabel={content.home.learnMore}
+                  to={publicRoutes[p.routeId]}
+                />
+              ))}
           </div>
         </Section>
-      ) : null}
-      {['kids','devopsCloudAi','linux','programs'].includes(routeId) && <LearningPreview track={routeId==='kids'?'kids':routeId==='programs'?undefined:'devops'} expanded/>}
-      {routeId==='contact' && <Section><div className="public-career-callout"><div><h2>{locale==='fr'?'Construisons ton parcours.':'Let’s build your learning path.'}</h2><p>{locale==='fr'?'Formation, préparation aux entretiens ou accompagnement de ton enfant : explique-nous ton objectif.':'Training, interview preparation or your child’s learning: tell us about your goal.'}</p></div><a href={`mailto:${ownerEmail}`}>{ownerEmail}</a></div></Section>}
+      )}
+      {[
+        "about",
+        "kids",
+        "iotArduino",
+        "languages",
+        "partners",
+        "faq",
+        "services",
+      ].includes(routeId) && <PublicGuidance routeId={routeId} />}
+      {routeId === "kids" && <LearningPreview track="kids" expanded />}
+      {routeId === "contact" && (
+        <Section>
+          <Suspense
+            fallback={
+              <p role="status">
+                {fr ? "Préparation du formulaire…" : "Preparing the form…"}
+              </p>
+            }
+          >
+            <ContactEnquiry />
+          </Suspense>
+        </Section>
+      )}
     </>
-  )
+  );
 }
-

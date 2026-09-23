@@ -70,3 +70,89 @@ test("service page offers the verified public form and no invented consultation 
   ).not.toBeInTheDocument();
   await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
 });
+
+test("search opens a matching course result and indexes photo labels", async () => {
+  const open = vi.fn();
+  vi.mocked(workspaceRequest).mockImplementation(async (path) =>
+    path === "/api/studio/search"
+      ? ([] as never)
+      : ({
+          notes: [],
+          galleries: [],
+          media: [
+            {
+              id: "photo",
+              name: "IMG001.png",
+              label: "Cloud architecture sketch",
+              type: "image/png",
+            },
+          ],
+        } as never),
+  );
+  render(
+    <CampusSearch
+      persona="adult"
+      campus={seedCampus()}
+      go={vi.fn()}
+      openResult={open}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Search the campus"), {
+    target: { value: "architecture sketch" },
+  });
+  expect(
+    await screen.findByText("Cloud architecture sketch"),
+  ).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Search the campus"), {
+    target: { value: "Cloud" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Course areas", exact: true }),
+  );
+  fireEvent.click(screen.getAllByRole("button", { name: "Open result" })[0]);
+  expect(open).toHaveBeenCalledWith(
+    expect.objectContaining({ type: "courses", page: "courses" }),
+  );
+});
+test("lesson search dispatches the visible lesson identifier; children do not get the adult course catalog", async () => {
+  const open = vi.fn(),
+    campus = seedCampus();
+  campus.lessons = campus.lessons.filter((l) => l.track === "kids").slice(0, 1);
+  render(
+    <CampusSearch
+      persona="child"
+      campus={campus}
+      go={vi.fn()}
+      openResult={open}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Lessons", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Open result" }));
+  expect(open).toHaveBeenCalledWith(
+    expect.objectContaining({ id: campus.lessons[0].id, type: "lessons" }),
+  );
+  expect(
+    screen.queryByRole("button", { name: "Course areas" }),
+  ).not.toBeInTheDocument();
+  await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
+});
+
+test("search lets a learner reach results beyond the initial page", async () => {
+  const campus = seedCampus(),
+    template = campus.lessons[0];
+  campus.lessons = Array.from({ length: 85 }, (_, i) => ({
+    ...template,
+    id: "lesson-" + i,
+    title: "Practice lesson " + i,
+  }));
+  render(<CampusSearch persona="adult" campus={campus} go={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Lessons", exact: true }));
+  expect(
+    screen.queryByRole("heading", { name: "Practice lesson 84", exact: true }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show more results" }));
+  expect(
+    screen.getByRole("heading", { name: "Practice lesson 84", exact: true }),
+  ).toBeInTheDocument();
+  await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
+});
