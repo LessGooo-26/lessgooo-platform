@@ -1,11 +1,11 @@
-FROM node:22-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS build
+FROM node:24-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run lint && npm run typecheck && npm test && npm run build
 
-FROM node:22-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS runtime
+FROM node:24-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS runtime
 ENV NODE_ENV=production CAMPUS_CONTAINER=1 CAMPUS_DATA_DIR=/app/.local-data CAMPUS_BACKUP_DIR=/app/.local-data/backups PORT=4173
 WORKDIR /app
 COPY package*.json ./
