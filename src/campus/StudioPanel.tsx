@@ -460,14 +460,16 @@ export function CampusSearch({
   campus,
   go,
   openResult,
+  initialQuery = "",
 }: {
   persona: Persona;
   campus: Campus;
   go: (page: string) => void;
   openResult?: (result: SearchResult) => void;
+  initialQuery?: string;
 }) {
   const { t, locale } = useLanguage();
-  const [query, setQuery] = useState(""),
+  const [query, setQuery] = useState(initialQuery),
     [filter, setFilter] = useState("all"),
     [visibleCount, setVisibleCount] = useState(80),
     [personal, setPersonal] = useState<SearchResult[]>([]),

@@ -19,6 +19,22 @@ local transcription and service enquiries. The public website remains on GitHub 
 · [Argo CD](#argocd-gitops) · [monitoring](#prometheus-and-grafana)
 · [recovery](#recovery-cleanup-and-troubleshooting) · [student phases](#student-project-in-ten-phases).
 
+## Your campus workspace
+
+Use the search bar from any campus page, or press **Ctrl+K / Cmd+K**, to find a
+tool or open a visible lesson. Press Enter to continue in the complete campus
+search, including your accessible notes, files and homework.
+
+Open **Tools** (the grid icon) or **Customize** on the home page to pin up to six
+shortcuts with the stars. The home page also shows your four most recent sections.
+Favorites and recent section IDs stay in this browser, separately for each demo
+profile; use **Clear recent spaces** in the launcher to clear that list. Escape
+closes the launcher and returns keyboard focus. English/French and the grouped
+mobile navigation work throughout.
+
+See [workspace design](docs/product/workspace-interface.md) and
+[validation](docs/quality/workspace-interface-validation.md).
+
 ## Courses and service requests
 
 Open **Courses & lessons** in the campus: 57 distinct bundled lessons are organised

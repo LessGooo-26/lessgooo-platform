@@ -8,5 +8,6 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src/campus', import.meta.url)) } },
   server: { host: '127.0.0.1', proxy: { '/api': { target: 'http://127.0.0.1:4174', changeOrigin: true } } },
   build: { rollupOptions: { input: { website: 'index.html', campus: 'campus.html' } } },
-  test: { environment: 'jsdom', setupFiles: './src/test/setup.ts', exclude: [...configDefaults.exclude, '.reference-*/**', '.local-data/**', 'dist/**'] },
+  // Bound worker count so CLI/SQLite integration tests remain reliable on local machines and small CI runners.
+  test: { maxWorkers: 1, environment: 'jsdom', setupFiles: './src/test/setup.ts', exclude: [...configDefaults.exclude, '.reference-*/**', '.local-data/**', 'dist/**'] },
 })

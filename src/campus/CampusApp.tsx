@@ -1,4 +1,15 @@
 import {
+  WorkspaceHub,
+  WorkspaceWelcome,
+  type WorkspaceLauncherHandle,
+} from "./WorkspaceHub";
+import {
+  campusTools,
+  visibleTools,
+  navigationGroups,
+} from "./lib/campus-navigation";
+import { useWorkspacePreferences } from "./lib/use-workspace-preferences";
+import {
   findCourse,
   type CourseId,
   type CourseInquiry,
@@ -12,6 +23,7 @@ import {
 import { homeworkText } from "./lib/homework";
 import {
   CampusSearch,
+  type SearchResult,
   ServiceDesk,
   ServiceAlerts,
   LiveClassTools,
@@ -27,36 +39,29 @@ import {
   type ReactNode,
 } from "react";
 import {
-  LayoutDashboard,
-  BookOpen,
   CalendarDays,
   Users,
   FolderCheck,
   BriefcaseBusiness,
   MessagesSquare,
-  Settings,
   ArrowUpRight,
   ArrowRight,
   Plus,
   Video,
-  Cloud,
   Terminal,
   Blocks,
   Check,
   ChevronRight,
   Download,
   GraduationCap,
-  Wallet,
   Globe,
   ShieldCheck,
   FileText,
-  MessageCircle,
   Search,
   Loader2,
   ExternalLink,
   Paperclip,
   LifeBuoy,
-  Rocket,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -100,12 +105,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster, toast } from "sonner";
-import {
-  BrandLogo,
-  HelpTip,
-  Launchpad,
-  WorkspacePanel,
-} from "./WorkspacePanel";
+import { BrandLogo, HelpTip, WorkspacePanel } from "./WorkspacePanel";
 import "./workspace.css";
 import { ParentHome, ProfileButton } from "./PersonalSpace";
 import { useLanguage } from "./lib/language";
@@ -128,27 +128,9 @@ import {
 import { LessonLibrary } from "./LessonLibrary";
 const CourseCatalog = lazy(() => import("./CourseCatalog"));
 const LessonReader = lazy(() => import("./LessonReader"));
-const navItems = [
-  ["dashboard", "Vue d’ensemble", LayoutDashboard],
-  ["search", "Recherche", Search],
-  ["services", "Services & demandes", BriefcaseBusiness],
-  ["courses", "Parcours & leçons", BookOpen],
-  ["explore", "Projets & ressources", Rocket],
-  ["notebook", "Notes & présentations", FileText],
-  ["library", "Vidéos & fichiers", Video],
-  ["galleries", "Galeries photo", Blocks],
-  ["profile", "Mon profil", Users],
-  ["career", "Entretiens & carrière", GraduationCap],
-  ["sessions", "Cours en direct", CalendarDays],
-  ["projects", "Travaux & corrections", FolderCheck],
-  ["students", "Mes élèves", Users],
-  ["coaching", "One-on-one", MessagesSquare],
-  ["stages", "Suivi des stages", BriefcaseBusiness],
-  ["payments", "Paiements", Wallet],
-  ["help", "Questions & réponses", MessageCircle],
-  ["settings", "Réglages & guide", Settings],
-  ["integrations", "Drive & paiements en ligne", Cloud],
-] as const;
+const navItems = campusTools.map(
+  (tool) => [tool.id, tool.label, tool.icon] as const,
+);
 const zones = [
   ["Africa/Douala", "Douala · WAT"],
   ["America/Toronto", "Toronto / Montréal"],
@@ -285,39 +267,42 @@ function SideNav({
   persona,
 }: {
   page: string;
-  go: (p: string) => void;
+  go: (page: string) => boolean | void;
   persona: Persona;
 }) {
   const { setOpenMobile } = useSidebar();
+  const { locale, t } = useLanguage();
+  const tools = visibleTools(persona);
   return (
-    <SidebarMenu>
-      {navItems
-        .filter(
-          ([id]) =>
-            !(persona !== "teacher" && id === "students") &&
-            !(
-              ["parent", "child"].includes(persona) &&
-              ["stages", "coaching", "career"].includes(id)
-            ) &&
-            !(persona !== "teacher" && id === "integrations") &&
-            !(persona === "child" && ["payments", "services"].includes(id)),
-        )
-        .map(([id, label, Icon]) => (
-          <SidebarMenuItem key={id}>
-            <SidebarMenuButton
-              className="nav-button"
-              isActive={page === id}
-              onClick={() => {
-                go(id);
-                setOpenMobile(false);
-              }}
-            >
-              <Icon />
-              <span>{tx(label)}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-    </SidebarMenu>
+    <nav
+      className="suite-navigation"
+      aria-label={t("Campus navigation", "Navigation du campus")}
+    >
+      {navigationGroups.map((group) => (
+        <div className="suite-nav-group" key={group.id}>
+          <p className="suite-nav-label">{group[locale]}</p>
+          <SidebarMenu>
+            {tools
+              .filter((tool) => tool.group === group.id)
+              .map(({ id, label, icon: Icon }) => (
+                <SidebarMenuItem key={id}>
+                  <SidebarMenuButton
+                    className="nav-button"
+                    isActive={page === id}
+                    aria-current={page === id ? "page" : undefined}
+                    onClick={() => {
+                      if (go(id) !== false) setOpenMobile(false);
+                    }}
+                  >
+                    <Icon />
+                    <span>{tx(label)}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+          </SidebarMenu>
+        </div>
+      ))}
+    </nav>
   );
 }
 async function readSnapshot(response: Response) {
@@ -476,7 +461,7 @@ export default function CampusApp() {
       }
     }),
     [page, setPage] = useState(() =>
-      navItems.some(([id]) => id === location.hash.slice(1))
+      visibleTools(persona).some(({ id }) => id === location.hash.slice(1))
         ? location.hash.slice(1)
         : "dashboard",
     ),
@@ -495,6 +480,12 @@ export default function CampusApp() {
     [submission, setSubmission] = useState<Submission | null>(null),
     [stage, setStage] = useState<Stage | null>(null);
   const profile = useProfile(persona);
+  const workspace = useWorkspacePreferences(persona, page);
+  const launcher = useRef<WorkspaceLauncherHandle>(null);
+  const [workspaceSearch, setWorkspaceSearch] = useState({
+    query: "",
+    request: 0,
+  });
   const snapRef = useRef(snapshot);
   const pageRef = useRef(page);
   pageRef.current = page;
@@ -528,7 +519,10 @@ export default function CampusApp() {
   useEffect(() => {
     const navigate = () => {
       const section = location.hash.slice(1);
-      if (!navItems.some(([id]) => id === section)) return;
+      if (!visibleTools(personaRef.current).some(({ id }) => id === section)) {
+        history.replaceState(null, "", `#${pageRef.current}`);
+        return;
+      }
       if (
         !window.dispatchEvent(
           new Event("campus-before-navigate", { cancelable: true }),
@@ -589,13 +583,15 @@ export default function CampusApp() {
       setBusy(false);
     }
   };
-  const go = (p: string) => {
+  const go = useCallback((p: string) => {
+    if (!visibleTools(personaRef.current).some(({ id }) => id === p))
+      return false;
     if (
       !window.dispatchEvent(
         new Event("campus-before-navigate", { cancelable: true }),
       )
     )
-      return;
+      return false;
     setPage(p);
     if (location.hash !== `#${p}`) history.pushState(null, "", `#${p}`);
     setSelectedCourse(undefined);
@@ -603,7 +599,7 @@ export default function CampusApp() {
     setFilter("all");
     window.scrollTo({ top: 0 });
     return true;
-  };
+  }, []);
   const switchPersona = (p: Persona) => {
     if (busy) return;
     if (
@@ -613,6 +609,7 @@ export default function CampusApp() {
     )
       return;
     personaRef.current = p;
+    setWorkspaceSearch({ query: "", request: 0 });
     setServiceInquiry(undefined);
     setSelectedCourse(undefined);
     setPersona(p);
@@ -712,7 +709,7 @@ export default function CampusApp() {
       },
     });
     return () => ctl.abort();
-  }, []);
+  }, [go]);
   const c = snapshot?.state,
     teacher = persona === "teacher",
     identity = personas.find((x) => x.value === persona)!,
@@ -1078,6 +1075,27 @@ export default function CampusApp() {
           .includes(query.toLowerCase()),
     ) || [];
   const sectionTitle = navItems.find((n) => n[0] === page)?.[1] || "Campus";
+  const openSearchResult = (result: SearchResult) => {
+    if (!c) return false;
+
+    if (!go(result.page)) return false;
+    if (result.type === "courses") {
+      setCourseView("catalog");
+      setSelectedCourse(findCourse(result.id)?.id);
+    }
+    if (result.type === "lessons") {
+      setCourseView("lessons");
+      setLesson(c.lessons.find((item) => item.id === result.id) || null);
+    }
+    if (result.type === "homework")
+      setSubmission(
+        c.submissions.find((item) => item.id === result.id) || null,
+      );
+    if (result.type === "classes")
+      setSession(c.sessions.find((item) => item.id === result.id) || null);
+
+    return true;
+  };
   const actionButton =
     page === "courses" && teacher ? (
       <Button onClick={() => openLesson()}>
@@ -1158,17 +1176,7 @@ export default function CampusApp() {
           <span>{tx("CAMPUS · APPRENDRE & PRATIQUER")}</span>
         </SidebarHeader>
         <SidebarContent className="side-content">
-          <div className="workspace-label">{tx("MON ESPACE")}</div>
           <SideNav page={page} go={go} persona={persona} />
-          <div className="side-note">
-            <Cloud size={23} />
-            <strong>{tx("Le savoir ouvre des portes.")}</strong>
-            <p>
-              {tx("Un cours. Un projet.")}
-              <br />
-              {tx("Une compétence de plus.")}
-            </p>
-          </div>
         </SidebarContent>
         <SidebarFooter className="side-footer">
           <div className="avatar">{tx(user.name.slice(0, 1))}</div>
@@ -1181,32 +1189,35 @@ export default function CampusApp() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
-        <header className="topbar">
-          <div className="breadcrumb">
+      <SidebarInset className="suite-main">
+        <header className="topbar suite-topbar">
+          <div className="suite-header-start">
             <SidebarTrigger aria-label={tx("Ouvrir le menu")} />
-            <span>{tx("Campus")}</span>
-            <ChevronRight size={14} />
-            <strong>{tx(sectionTitle)}</strong>
+            <BrandLogo className="suite-mobile-logo" />
+            <span className="suite-header-title">{tx("Campus")}</span>
           </div>
-          <BrandLogo className="top-logo" />
+          <WorkspaceHub
+            key={persona}
+            ref={launcher}
+            persona={persona}
+            preferences={workspace.data}
+            lessons={c?.lessons || []}
+            go={go}
+            onPin={workspace.toggle}
+            clearRecent={workspace.clearRecent}
+            openResult={openSearchResult}
+            searchCampus={(value) => {
+              if (!go("search")) return false;
+              setWorkspaceSearch((previous) => ({
+                query: value,
+                request: previous.request + 1,
+              }));
+              return true;
+            }}
+          />
           <div className="top-controls">
             <LanguageSwitch />
             {teacher && <ServiceAlerts go={go} />}
-            <Choice
-              value={zone}
-              onChange={(v) => {
-                setZone(v);
-                localStorage.setItem("lessgooo-timezone", v);
-              }}
-              options={zones}
-              label={tx("Fuseau horaire")}
-            />
-            <HelpTip label={tx("Aide : fuseau horaire")}>
-              {tx(
-                "Ce réglage change l’affichage des horaires, sans déplacer les séances enregistrées.",
-              )}
-            </HelpTip>
             <ProfileButton
               key={persona}
               persona={persona}
@@ -1214,24 +1225,51 @@ export default function CampusApp() {
             />
           </div>
         </header>
-        <div className="demo-bar">
+        <div className="demo-bar suite-context">
           <div>
             <span className="demo-pill">{tx("DÉMO LOCALE")}</span>
             <span>
               {tx("Données fictives · Sauvegarde sur cet ordinateur")}
             </span>
           </div>
-          <Choice
-            value={persona}
-            onChange={(v) => switchPersona(v as Persona)}
-            options={personas.map((p) => [p.value, tx("Vue ") + tx(p.label)])}
-            label={tx("Choisir une vue de test")}
-          />
-          <HelpTip label={tx("Aide : vues de démonstration")}>
-            {tx(
-              "Teste le parcours du formateur, de l’adulte, du parent ou de l’enfant. Ces vues locales ne remplacent pas une connexion individuelle sécurisée.",
-            )}
-          </HelpTip>
+          <div className="suite-context-controls">
+            <div>
+              <Choice
+                value={zone}
+                onChange={(v) => {
+                  setZone(v);
+                  try {
+                    localStorage.setItem("lessgooo-timezone", v);
+                  } catch {
+                    /* Current visit keeps the setting. */
+                  }
+                }}
+                options={zones}
+                label={tx("Fuseau horaire")}
+              />
+              <HelpTip label={tx("Aide : fuseau horaire")}>
+                {tx(
+                  "Ce réglage change l’affichage des horaires, sans déplacer les séances enregistrées.",
+                )}
+              </HelpTip>
+            </div>
+            <div>
+              <Choice
+                value={persona}
+                onChange={(v) => switchPersona(v as Persona)}
+                options={personas.map((p) => [
+                  p.value,
+                  tx("Vue ") + tx(p.label),
+                ])}
+                label={tx("Choisir une vue de test")}
+              />
+              <HelpTip label={tx("Aide : vues de démonstration")}>
+                {tx(
+                  "Teste le parcours du formateur, de l’adulte, du parent ou de l’enfant. Ces vues locales ne remplacent pas une connexion individuelle sécurisée.",
+                )}
+              </HelpTip>
+            </div>
+          </div>
         </div>
         <div
           tabIndex={-1}
@@ -1336,11 +1374,15 @@ export default function CampusApp() {
               <>
                 {page === "dashboard" && (
                   <>
-                    {persona === "parent" ? (
-                      <ParentHome c={c} go={go} />
-                    ) : (
-                      <Launchpad c={c} go={go} />
-                    )}
+                    <WorkspaceWelcome
+                      persona={persona}
+                      preferences={workspace.data}
+                      go={go}
+                      openTools={(trigger) =>
+                        launcher.current?.openTools(trigger)
+                      }
+                    />
+                    {persona === "parent" && <ParentHome c={c} go={go} />}
                     <HomeworkSummary
                       c={c}
                       openLesson={setLesson}
@@ -2345,30 +2387,9 @@ export default function CampusApp() {
                     persona={persona}
                     campus={c}
                     go={go}
-                    openResult={(result) => {
-                      if (!go(result.page)) return;
-                      if (result.type === "courses") {
-                        setCourseView("catalog");
-                        setSelectedCourse(findCourse(result.id)?.id);
-                      }
-                      if (result.type === "lessons") {
-                        setCourseView("lessons");
-                        setLesson(
-                          c.lessons.find((item) => item.id === result.id) ||
-                            null,
-                        );
-                      }
-                      if (result.type === "homework")
-                        setSubmission(
-                          c.submissions.find((item) => item.id === result.id) ||
-                            null,
-                        );
-                      if (result.type === "classes")
-                        setSession(
-                          c.sessions.find((item) => item.id === result.id) ||
-                            null,
-                        );
-                    }}
+                    initialQuery={workspaceSearch.query}
+                    key={persona + ":" + workspaceSearch.request}
+                    openResult={openSearchResult}
                   />
                 )}
                 {page === "services" && (

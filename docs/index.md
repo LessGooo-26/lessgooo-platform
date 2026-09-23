@@ -83,3 +83,5 @@ Courses and company services expanded on 2026-09-23: [catalog scope](programs/co
 Whole-site review requested on 2026-09-23: [scope and findings](product/site-review.md).
 
 - Whole-site validation and feature coverage: [quality/site-review-validation.md](quality/site-review-validation.md).
+
+Campus workspace design inspired by Microsoft/Google patterns: [scope](product/workspace-interface.md) and [validation](quality/workspace-interface-validation.md).

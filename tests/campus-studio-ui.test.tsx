@@ -156,3 +156,18 @@ test("search lets a learner reach results beyond the initial page", async () => 
   ).toBeInTheDocument();
   await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
 });
+
+test("whole-campus search initializes with the query from the workspace launcher", async () => {
+  render(
+    <CampusSearch
+      persona="adult"
+      campus={seedCampus()}
+      go={vi.fn()}
+      initialQuery="My cloud recording"
+    />,
+  );
+  expect(screen.getByLabelText("Search the campus")).toHaveValue(
+    "My cloud recording",
+  );
+  expect(await screen.findByText("My cloud recording")).toBeInTheDocument();
+});
