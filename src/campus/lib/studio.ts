@@ -1,9 +1,6 @@
+import { courseIds } from "./course-catalog";
 import { z } from "zod";
-import {
-  countryCodes,
-  serviceQuestions,
-  validTimezone,
-} from "./service-intake";
+import { countryCodes, questionsFor, validTimezone } from "./service-intake";
 
 export type ImportJob = {
   id: string;
@@ -28,9 +25,19 @@ export type Transcript = {
 };
 export const services = [
   {
+    id: "company",
+    en: "Company project",
+    fr: "Projet d’entreprise",
+    detailEn:
+      "Practical services across our nine course areas. Tell us what your company needs.",
+    detailFr:
+      "Des services pratiques dans nos neuf domaines de formation. Décrivez les besoins de votre entreprise.",
+    color: "green",
+  },
+  {
     id: "training",
-    en: "DevOps & cloud training",
-    fr: "Formation DevOps & cloud",
+    en: "Course training",
+    fr: "Se former avec LESSGOOO",
     detailEn: "Learn with practical lessons and projects.",
     detailFr: "Apprendre avec des cours et projets pratiques.",
     color: "blue",
@@ -85,7 +92,9 @@ export const serviceRequestSchema = z
       "kids",
       "workshop",
       "consultation",
+      "company",
     ]),
+    course: z.enum(["", ...courseIds]).default(""),
     name: z.string().trim().min(2).max(100),
     email: z.string().trim().email().max(254),
     phone: z.string().trim().max(40).default(""),
@@ -111,7 +120,19 @@ export const serviceRequestSchema = z
         path: ["phone"],
         message: "Add a phone number or choose email.",
       });
-    const questions = serviceQuestions[request.service];
+    if (request.service === "company" && !request.course)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["course"],
+        message: "Choose a company service area.",
+      });
+    if (!["training", "company"].includes(request.service) && request.course)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["course"],
+        message: "This service does not accept a course area.",
+      });
+    const questions = questionsFor(request.service, request.course);
     for (const question of questions)
       if (question.required && (request.answers[question.id] || "").length < 3)
         context.addIssue({

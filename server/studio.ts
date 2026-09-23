@@ -175,6 +175,7 @@ export class Studio {
         (r) =>
           r.email.toLowerCase() === d.email.toLowerCase() &&
           r.service === d.service &&
+          (r.course || "") === d.course &&
           r.status !== "closed",
       )
     )

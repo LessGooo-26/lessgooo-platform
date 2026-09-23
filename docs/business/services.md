@@ -48,3 +48,7 @@ Optional fields:
 
 Unknown optional fields should be omitted or shown as "Contact LESSGOOO" rather
 than fabricated.
+
+## Course-aligned company services
+
+The owner confirmed nine course areas and matching company services on 2026-09-23. See [catalog scope](../programs/course-service-catalog.md) for the authoritative list, preparation guidance and inquiry boundaries. Commercial terms remain unconfirmed.

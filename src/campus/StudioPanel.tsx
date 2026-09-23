@@ -1,4 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  findCourse,
+  type CourseId,
+  type CourseInquiry,
+} from "./lib/course-catalog";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Bell,
   Search,
@@ -27,7 +39,9 @@ import { HelpTip } from "./WorkspacePanel";
 import { toast } from "sonner";
 import "./studio.css";
 import { ServiceIntakeFields, RequestBrief } from "./ServiceIntake";
-import { serviceQuestions, type ServiceId } from "./lib/service-intake";
+import { questionsFor, type ServiceId } from "./lib/service-intake";
+
+const CourseCatalog = lazy(() => import("./CourseCatalog"));
 
 // Public form URL is verified after creation. No private Google credentials here.
 const publicServiceForm =
@@ -694,15 +708,26 @@ export function CampusSearch({
   );
 }
 
-export function ServiceDesk({ persona }: { persona: Persona }) {
+export function ServiceDesk({
+  persona,
+  inquiry,
+}: {
+  persona: Persona;
+  inquiry?: CourseInquiry;
+}) {
   const { t } = useLanguage(),
     { data, error, load } = useStudio(persona);
-  const [service, setService] = useState<ServiceId>("training"),
+  const [service, setService] = useState<ServiceId>(
+      inquiry?.service ?? "training",
+    ),
+    [course, setCourse] = useState<CourseId | "">(inquiry?.course ?? ""),
     [busy, setBusy] = useState(false),
     [receipt, setReceipt] = useState(""),
     [problem, setProblem] = useState(""),
-    [view, setView] = useState(
-      () => sessionStorage.getItem("lessgooo-service-view") || "request",
+    [view, setView] = useState(() =>
+      inquiry
+        ? "request"
+        : sessionStorage.getItem("lessgooo-service-view") || "request",
     );
   useEffect(() => {
     const show = () => setView("inbox");
@@ -721,6 +746,7 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
         persona,
         {
           service,
+          course: ["training", "company"].includes(service) ? course : "",
           name: fields.get("name"),
           email: fields.get("email"),
           phone: fields.get("phone"),
@@ -733,7 +759,7 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
           contact: fields.get("contact"),
           timeframe: fields.get("timeframe"),
           answers: Object.fromEntries(
-            serviceQuestions[service].map((question) => [
+            questionsFor(service, course).map((question) => [
               question.id,
               fields.get(`answer:${question.id}`) || "",
             ]),
@@ -864,8 +890,29 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
         </>
       ) : (
         <>
+          <details className="company-catalog-picker">
+            <summary>
+              {t(
+                "Explore our 9 company services",
+                "Découvrir nos 9 services aux entreprises",
+              )}
+            </summary>
+            <Suspense fallback={<p>{t("Loading…", "Chargement…")}</p>}>
+              <CourseCatalog
+                companyOnly
+                onInquiry={(selection) => {
+                  setService(selection.service);
+                  setCourse(selection.course);
+                  setReceipt("");
+                  requestAnimationFrame(() =>
+                    document.getElementById("service-request-heading")?.focus(),
+                  );
+                }}
+              />
+            </Suspense>
+          </details>
           <section className="panel service-intake">
-            <h2>
+            <h2 id="service-request-heading" tabIndex={-1}>
               {t("Tell us about your goal", "Parlez-nous de votre objectif")}
             </h2>
             <p className="studio-caption">
@@ -892,7 +939,12 @@ export function ServiceDesk({ persona }: { persona: Persona }) {
               <form className="studio-form" onSubmit={send}>
                 <ServiceIntakeFields
                   service={service}
-                  changeService={setService}
+                  changeService={(id) => {
+                    setService(id);
+                    if (!["training", "company"].includes(id)) setCourse("");
+                  }}
+                  course={course}
+                  changeCourse={setCourse}
                   busy={busy}
                 />
               </form>
@@ -925,6 +977,13 @@ function RequestCard({
       <span className={`badge ${r.status === "new" ? "orange" : "green"}`}>
         {t(service.en, service.fr)}
       </span>
+      {findCourse(r.course) && (
+        <p>
+          <strong>
+            {t(findCourse(r.course)!.title.en, findCourse(r.course)!.title.fr)}
+          </strong>
+        </p>
+      )}
       <h3>{r.name}</h3>
       <p>{r.message}</p>
       <p>

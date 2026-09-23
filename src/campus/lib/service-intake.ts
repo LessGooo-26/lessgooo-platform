@@ -1,3 +1,4 @@
+import { findCourse } from "./course-catalog";
 export type LocalText = { en: string; fr: string };
 export const words = (en: string, fr: string): LocalText => ({ en, fr });
 export type ServiceId =
@@ -6,7 +7,8 @@ export type ServiceId =
   | "applications"
   | "kids"
   | "workshop"
-  | "consultation";
+  | "consultation"
+  | "company";
 export type IntakeQuestion = {
   id: string;
   label: LocalText;
@@ -28,6 +30,22 @@ const q = (
   required,
 });
 export const serviceQuestions: Record<ServiceId, IntakeQuestion[]> = {
+  company: [
+    q(
+      "organisation",
+      "Tell us about your company and your role.",
+      "Présentez votre entreprise et votre rôle.",
+      "Company name, activity, approximate team size and your role in this project. Use fictional details in this demo.",
+      "Nom, activité, effectif approximatif et votre rôle dans le projet. Utilisez des données fictives dans cette démo.",
+    ),
+    q(
+      "businessContext",
+      "What is the current situation?",
+      "Quelle est la situation actuelle ?",
+      "Describe the problem, tools already in use and who will use or approve the result. No private files or credentials.",
+      "Décrivez le problème, les outils existants et les utilisateurs ou responsables de validation. Aucun fichier privé ni identifiant.",
+    ),
+  ],
   training: [
     q(
       "background",
@@ -40,8 +58,8 @@ export const serviceQuestions: Record<ServiceId, IntakeQuestion[]> = {
       "skills",
       "Which skills do you want to develop?",
       "Quelles compétences souhaitez-vous développer ?",
-      "Name the tools or topics: Linux, Git, Docker, AWS, Kubernetes… Pick your priorities.",
-      "Nommez les outils ou sujets : Linux, Git, Docker, AWS, Kubernetes… Indiquez vos priorités.",
+      "Name your priorities: cloud, Linux, security, websites, office work, visual design or automation.",
+      "Indiquez vos priorités : cloud, Linux, sécurité, sites web, bureautique, création visuelle ou automatisation.",
     ),
     q(
       "equipment",
@@ -260,3 +278,14 @@ export const timeframes = [
     ...words("My timing is flexible", "Mes dates sont flexibles"),
   },
 ] as const;
+
+export function questionsFor(
+  service: ServiceId,
+  course?: string,
+): IntakeQuestion[] {
+  const extra = service === "company" ? (findCourse(course)?.brief ?? []) : [];
+  return [
+    ...serviceQuestions[service],
+    ...extra.map((question) => ({ ...question, required: true })),
+  ];
+}

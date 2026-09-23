@@ -1,3 +1,4 @@
+import type { CourseInquiry } from "./lib/course-catalog";
 import { mediaUrl } from "./lib/workspace-api";
 import {
   HomeworkBoard,
@@ -80,7 +81,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,6 +122,7 @@ import {
   type Stage,
 } from "@/lib/model";
 import { LessonLibrary } from "./LessonLibrary";
+const CourseCatalog = lazy(() => import("./CourseCatalog"));
 const LessonReader = lazy(() => import("./LessonReader"));
 const navItems = [
   ["dashboard", "Vue d’ensemble", LayoutDashboard],
@@ -450,7 +452,7 @@ function Editor({
   );
 }
 export default function CampusApp() {
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
   useEffect(() => {
     document.documentElement.lang = locale;
     document.title =
@@ -480,6 +482,8 @@ export default function CampusApp() {
     [busy, setBusy] = useState(false),
     [filter, setFilter] = useState("all"),
     [query, setQuery] = useState(""),
+    [courseView, setCourseView] = useState("catalog"),
+    [serviceInquiry, setServiceInquiry] = useState<CourseInquiry | undefined>(),
     [editor, setEditor] = useState<FormConfig | null>(null),
     [lesson, setLesson] = useState<Lesson | null>(null),
     [session, setSession] = useState<Session | null>(null),
@@ -598,6 +602,7 @@ export default function CampusApp() {
     )
       return;
     personaRef.current = p;
+    setServiceInquiry(undefined);
     setPersona(p);
     try {
       localStorage.setItem("lessgooo-persona", p);
@@ -1662,57 +1667,88 @@ export default function CampusApp() {
                   </>
                 )}
                 {page === "courses" && (
-                  <>
-                    <div className="toolbar">
-                      <Tabs value={filter} onValueChange={setFilter}>
-                        <TabsList>
-                          <TabsTrigger value="all">
-                            {tx("Tous les parcours")}
-                          </TabsTrigger>
-                          {teacher && (
-                            <>
-                              <TabsTrigger value="devops">
-                                {tx("DevOps & Cloud")}
-                              </TabsTrigger>
-                              <TabsTrigger value="kids">
-                                {tx("Kids")}
-                              </TabsTrigger>
-                            </>
-                          )}
-                        </TabsList>
-                      </Tabs>
-                      <label className="search">
-                        <Search size={17} />
-                        <Input
-                          aria-label={tx("Rechercher une leçon")}
-                          placeholder={tx("Rechercher une leçon")}
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                        />
-                      </label>
-                    </div>
-                    <LessonLibrary
-                      lessons={visibleLessons}
-                      validated={
-                        new Set(
-                          c.submissions
-                            .filter(
-                              (s) =>
-                                s.student === studentId &&
-                                s.status === "validated",
-                            )
-                            .map((s) => s.lesson),
-                        )
-                      }
-                      openLesson={setLesson}
-                      searching={!!query.trim()}
-                    />
-                    {!visibleLessons.length && (
-                      <Empty title={tx("Aucune leçon trouvée")}>
-                        {tx("Essayez un autre mot ou créez une leçon.")}
-                      </Empty>
+                  <Tabs
+                    value={persona === "child" ? "lessons" : courseView}
+                    onValueChange={setCourseView}
+                  >
+                    {persona !== "child" && (
+                      <TabsList
+                        aria-label={t("Course view", "Vue des formations")}
+                      >
+                        <TabsTrigger value="catalog">
+                          {t("Explore courses", "Découvrir les formations")}
+                        </TabsTrigger>
+                        <TabsTrigger value="lessons">
+                          {t("Lesson library", "Bibliothèque de leçons")}
+                        </TabsTrigger>
+                      </TabsList>
                     )}
-                  </>
+                    <TabsContent value="catalog">
+                      <Suspense
+                        fallback={<p>{t("Loading…", "Chargement…")}</p>}
+                      >
+                        <CourseCatalog
+                          lessons={c.lessons}
+                          openLesson={setLesson}
+                          onInquiry={(inquiry) => {
+                            setServiceInquiry(inquiry);
+                            go("services");
+                          }}
+                        />
+                      </Suspense>
+                    </TabsContent>
+                    <TabsContent value="lessons">
+                      <div className="toolbar">
+                        <Tabs value={filter} onValueChange={setFilter}>
+                          <TabsList>
+                            <TabsTrigger value="all">
+                              {tx("Tous les parcours")}
+                            </TabsTrigger>
+                            {teacher && (
+                              <>
+                                <TabsTrigger value="devops">
+                                  {tx("DevOps & Cloud")}
+                                </TabsTrigger>
+                                <TabsTrigger value="kids">
+                                  {tx("Kids")}
+                                </TabsTrigger>
+                              </>
+                            )}
+                          </TabsList>
+                        </Tabs>
+                        <label className="search">
+                          <Search size={17} />
+                          <Input
+                            aria-label={tx("Rechercher une leçon")}
+                            placeholder={tx("Rechercher une leçon")}
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <LessonLibrary
+                        lessons={visibleLessons}
+                        validated={
+                          new Set(
+                            c.submissions
+                              .filter(
+                                (s) =>
+                                  s.student === studentId &&
+                                  s.status === "validated",
+                              )
+                              .map((s) => s.lesson),
+                          )
+                        }
+                        openLesson={setLesson}
+                        searching={!!query.trim()}
+                      />
+                      {!visibleLessons.length && (
+                        <Empty title={tx("Aucune leçon trouvée")}>
+                          {tx("Essayez un autre mot ou créez une leçon.")}
+                        </Empty>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 )}
                 {page === "sessions" && (
                   <>
@@ -2279,7 +2315,19 @@ export default function CampusApp() {
                 {page === "search" && (
                   <CampusSearch persona={persona} campus={c} go={go} />
                 )}
-                {page === "services" && <ServiceDesk persona={persona} />}
+                {page === "services" && (
+                  <ServiceDesk
+                    key={
+                      persona +
+                      ":" +
+                      (serviceInquiry?.service ?? "") +
+                      ":" +
+                      (serviceInquiry?.course ?? "")
+                    }
+                    persona={persona}
+                    inquiry={serviceInquiry}
+                  />
+                )}
                 {[
                   "explore",
                   "notebook",

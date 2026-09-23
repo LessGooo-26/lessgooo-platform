@@ -165,3 +165,66 @@ test("only the old demo owner profile is migrated to Carles", () => {
     c.close();
   }
 });
+
+test("company requests retain their area, stay private and deduplicate by area", () => {
+  const campus = new CampusStore(":memory:");
+  const studio = new Studio(new WorkspaceStore(campus));
+  const input = {
+    service: "company",
+    course: "linux",
+    name: "Company Test",
+    email: "company@example.test",
+    phone: "",
+    message: "Maintain a fictional test server",
+    language: "en",
+    consent: true,
+    country: "CM",
+    city: "",
+    timezone: "Africa/Douala",
+    contact: "email",
+    timeframe: "flexible",
+    answers: {
+      organisation: "Test company",
+      businessContext: "Test systems",
+      linuxEstate: "One local test server",
+      maintenance: "Test window",
+    },
+  };
+  try {
+    expect(() => studio.request("child", input)).toThrow();
+    const first = studio.request("adult", input);
+    expect(studio.snapshot("teacher").requests[0]).toMatchObject({
+      id: first.id,
+      course: "linux",
+      answers: input.answers,
+    });
+    expect(studio.snapshot("parent").requests).toHaveLength(0);
+    expect(() => studio.request("adult", input)).toThrow(/already/);
+    studio.request("adult", {
+      ...input,
+      course: "ai-design",
+      answers: {
+        organisation: "Test company",
+        businessContext: "Test campaign",
+        designBrief: "Test poster",
+        designAssets: "Test assets",
+      },
+    });
+    expect(
+      studio
+        .snapshot("adult")
+        .requests.map((r) => r.course)
+        .sort(),
+    ).toEqual(["ai-design", "linux"]);
+    expect(() =>
+      studio.updateRequest("adult", {
+        id: first.id,
+        status: "closed",
+        notes: "",
+      }),
+    ).toThrow();
+  } finally {
+    studio.close();
+    campus.close();
+  }
+});

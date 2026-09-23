@@ -100,3 +100,7 @@ Practice duration remains an estimate, not an approved timetable.
 - [DevOps program](../programs/devops-cloud-ai.md) and [Kids program](../programs/kids.md)
 - [Private lab decision](../decisions/ADR-004-private-devsecops-lab.md)
 - [Validation record](../quality/learning-experience-validation.md)
+
+## Catalog expansion, 2026-09-23
+
+[Course and service catalog](../programs/course-service-catalog.md) extends training beyond the original six support categories. Nine course outlines and corresponding company offerings share one bilingual content source. The existing assessed lesson library and progress remain separate.

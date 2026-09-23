@@ -1,3 +1,4 @@
+import { courseCatalog, findCourse, type CourseId } from "./lib/course-catalog";
 import { useState, type ReactNode } from "react";
 import { Send } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -5,7 +6,7 @@ import { useLanguage } from "./lib/language";
 import { services, type ServiceRequest } from "./lib/studio";
 import {
   countries,
-  serviceQuestions,
+  questionsFor,
   timeframes,
   type ServiceId,
 } from "./lib/service-intake";
@@ -33,13 +34,18 @@ function Field({
 export function ServiceIntakeFields({
   service,
   changeService,
+  course = "",
+  changeCourse = () => {},
   busy,
 }: {
   service: ServiceId;
   changeService: (id: ServiceId) => void;
+  course?: CourseId | "";
+  changeCourse?: (course: CourseId | "") => void;
   busy: boolean;
 }) {
   const { t, locale } = useLanguage();
+  const selectedCourse = findCourse(course);
   const [contact, setContact] = useState("email");
   const currentZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const zones = [
@@ -83,6 +89,81 @@ export function ServiceIntakeFields({
             services.find((s) => s.id === service)!.detailFr,
           )}
         </p>
+        {["training", "company"].includes(service) && (
+          <>
+            <Field
+              id="course"
+              label={
+                service === "company"
+                  ? t(
+                      "Which service area does your company need?",
+                      "De quel domaine de service votre entreprise a-t-elle besoin ?",
+                    )
+                  : t(
+                      "Which course interests you?",
+                      "Quelle formation vous intéresse ?",
+                    )
+              }
+              hint={
+                service === "company"
+                  ? t(
+                      "Choose an area for its preparation checklist and project questions. Changing it clears brief answers; contact details stay.",
+                      "Choisissez un domaine pour voir sa préparation et ses questions. Le changer efface les réponses du besoin ; les coordonnées restent.",
+                    )
+                  : t(
+                      "Choose an area, or select ‘Help me choose’. This is an inquiry, not an enrollment.",
+                      "Choisissez un domaine ou « Aidez-moi à choisir ». Il s’agit d’un renseignement, pas d’une inscription.",
+                    )
+              }
+            >
+              <select
+                id="course"
+                name="course"
+                value={course}
+                onChange={(e) => changeCourse(e.target.value as CourseId | "")}
+                required={service === "company"}
+                aria-describedby="course-hint"
+              >
+                <option value="">
+                  {service === "company"
+                    ? t(
+                        "Choose a service area",
+                        "Choisir un domaine de service",
+                      )
+                    : t("Help me choose", "Aidez-moi à choisir")}
+                </option>
+                {courseCatalog.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.title[locale]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {selectedCourse && (
+              <div className="intake-course-context">
+                <h3>{selectedCourse.title[locale]}</h3>
+                <p>
+                  {
+                    (service === "company"
+                      ? selectedCourse.company
+                      : selectedCourse.description)[locale]
+                  }
+                </p>
+                <p>
+                  <strong>
+                    {t("What to prepare", "Ce qu’il faut préparer")}
+                  </strong>
+                  <br />
+                  {service === "company"
+                    ? selectedCourse.companyNeeds[locale]
+                    : selectedCourse.prerequisites
+                        .map((item) => item[locale])
+                        .join(" ")}
+                </p>
+              </div>
+            )}
+          </>
+        )}
         {service === "consultation" && (
           <p className="consultation-note">
             {t(
@@ -287,13 +368,13 @@ export function ServiceIntakeFields({
           </Field>
         </div>
       </fieldset>
-      <fieldset className="intake-section" key={service}>
+      <fieldset className="intake-section" key={service + ":" + course}>
         <legend>
           <span>03</span>
           {t("Build your brief", "Décrivez votre besoin")}
         </legend>
         <div className="intake-grid">
-          {serviceQuestions[service].map((question) => (
+          {questionsFor(service, course).map((question) => (
             <Field
               key={question.id}
               id={`answer-${question.id}`}
@@ -398,6 +479,14 @@ export function RequestBrief({ request }: { request: ServiceRequest }) {
         {t("View the complete brief", "Voir la demande complète")}
       </summary>
       <dl>
+        {findCourse(request.course) && (
+          <>
+            <dt>
+              {t("Course / service area", "Formation / domaine de service")}
+            </dt>
+            <dd>{findCourse(request.course)!.title[locale]}</dd>
+          </>
+        )}
         <dt>{t("Location", "Localisation")}</dt>
         <dd>
           {[country, request.city, request.timezone]
@@ -417,7 +506,7 @@ export function RequestBrief({ request }: { request: ServiceRequest }) {
         <dd>
           {timeframes.find((f) => f.id === request.timeframe)?.[locale] || "—"}
         </dd>
-        {serviceQuestions[request.service]
+        {questionsFor(request.service, request.course)
           .filter((question) => request.answers?.[question.id])
           .map((question) => (
             <div key={question.id}>

@@ -135,3 +135,116 @@ test("French request labels and country names are available; children cannot use
   ).not.toBeInTheDocument();
   await waitFor(() => expect(workspaceRequest).toHaveBeenCalled());
 });
+
+test("course inquiry preselects the subject and posts it with the training brief", async () => {
+  render(
+    <ServiceDesk
+      persona="adult"
+      inquiry={{ service: "training", course: "ai-web" }}
+    />,
+  );
+  expect(screen.getByLabelText("Which course interests you?")).toHaveValue(
+    "ai-web",
+  );
+  fillTraining();
+  fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+  await screen.findByText("Request saved ✓");
+  expect(post).toHaveBeenCalledWith(
+    "/api/studio/request",
+    "adult",
+    expect.objectContaining({ service: "training", course: "ai-web" }),
+  );
+});
+
+test("company subjects swap their brief without clearing contact details and save the selected context", async () => {
+  render(
+    <ServiceDesk
+      persona="adult"
+      inquiry={{ service: "company", course: "ai-design" }}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("What name should we use?"), {
+    target: { value: "Company Contact" },
+  });
+  fireEvent.change(
+    screen.getByLabelText("What should the design communicate?"),
+    { target: { value: "A draft design brief" } },
+  );
+  fireEvent.change(
+    screen.getByLabelText("Which service area does your company need?"),
+    { target: { value: "linux" } },
+  );
+  expect(
+    screen.queryByLabelText("What should the design communicate?"),
+  ).toBeNull();
+  expect(screen.getByLabelText("What name should we use?")).toHaveValue(
+    "Company Contact",
+  );
+  expect(
+    screen.getByLabelText("Which Linux systems need attention?"),
+  ).toHaveValue("");
+  fireEvent.change(screen.getByLabelText("Which email can we reply to?"), {
+    target: { value: "company@example.test" },
+  });
+  fireEvent.change(screen.getByLabelText("Which country are you based in?"), {
+    target: { value: "CM" },
+  });
+  for (const field of screen.getAllByRole("textbox")) {
+    if (field.tagName === "TEXTAREA")
+      fireEvent.change(field, {
+        target: { value: "A detailed test response for the chosen service" },
+      });
+  }
+  fireEvent.change(
+    screen.getByLabelText("When would you like to get started?"),
+    { target: { value: "flexible" } },
+  );
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("button", { name: "Submit request" }));
+  await screen.findByText("Request saved ✓");
+  expect(post).toHaveBeenCalledWith(
+    "/api/studio/request",
+    "adult",
+    expect.objectContaining({
+      service: "company",
+      course: "linux",
+      answers: {
+        organisation: expect.any(String),
+        businessContext: expect.any(String),
+        linuxEstate: expect.any(String),
+        maintenance: expect.any(String),
+      },
+    }),
+  );
+});
+
+test("French company requests and inbox briefs keep area and question labels in French", () => {
+  setLanguage("fr");
+  const view = render(
+    <ServiceDesk
+      persona="adult"
+      inquiry={{ service: "company", course: "ai-automation" }}
+    />,
+  );
+  expect(
+    screen.getByLabelText("Quel processus répétitif faut-il automatiser ?"),
+  ).toBeRequired();
+  expect(
+    screen.queryByLabelText("Which repetitive process should be automated?"),
+  ).toBeNull();
+  view.unmount();
+  render(
+    <RequestBrief
+      request={
+        {
+          service: "company",
+          course: "ai-automation",
+          language: "fr",
+          answers: { workflow: "Notre processus de test" },
+        } as ServiceRequest
+      }
+    />,
+  );
+  expect(screen.getByText("Automatisation avec l’IA")).toBeInTheDocument();
+  expect(screen.getByText("Notre processus de test")).toBeInTheDocument();
+});

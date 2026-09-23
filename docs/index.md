@@ -77,3 +77,5 @@ Use this order as a starting point:
 6. examples and README material.
 
 If a conflict affects business behavior, record it in `UNKNOWN.md`.
+
+Courses and company services expanded on 2026-09-23: [catalog scope](programs/course-service-catalog.md).
