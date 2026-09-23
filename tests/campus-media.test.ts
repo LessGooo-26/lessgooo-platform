@@ -233,3 +233,119 @@ test("video HTTP transfer preserves bytes, supports seeking and HEAD, and checks
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 }, 30000);
+
+test("photo labels and dates persist without replacing the original file or upload date", () => {
+  const w = setup(),
+    id = upload(w, "child");
+  const original = w.media("child", id);
+  w.action("child", "photoDetails", {
+    id,
+    label: "My first drawing",
+    photoDate: "2024-02-29",
+  });
+  const saved = new WorkspaceStore(w.campus).media("child", id);
+  expect(saved).toMatchObject({
+    label: "My first drawing",
+    photoDate: "2024-02-29",
+    created: original.created,
+    name: original.name,
+  });
+  expect(Buffer.concat([...w.byteRange(id, 0, png.length - 1)])).toEqual(png);
+  for (const persona of ["adult", "parent", "teacher"] as const)
+    expect(() =>
+      w.action(persona, "photoDetails", {
+        id,
+        label: "Changed",
+        photoDate: "",
+      }),
+    ).toThrow();
+  for (const photoDate of [
+    "2025-02-29",
+    "2026-04-31",
+    "not-a-date",
+    "2026-01-01T00:00:00Z",
+  ])
+    expect(() =>
+      w.action("child", "photoDetails", { id, label: "Test", photoDate }),
+    ).toThrow(/valid photo date/);
+  expect(() =>
+    w.action("child", "photoDetails", {
+      id,
+      label: "x".repeat(161),
+      photoDate: "",
+    }),
+  ).toThrow();
+  w.action("child", "photoDetails", { id, label: "", photoDate: "" });
+  expect(w.media("child", id)).toMatchObject({ label: "", photoDate: "" });
+});
+
+test("gallery backgrounds require an owned completed photo in the same gallery and clear on move", () => {
+  const w = setup();
+  const g = w.action("child", "gallery", {
+    name: "My projects",
+    purpose: "",
+    color: "blue",
+  }).galleries[0];
+  const id = upload(w, "child", { gallery: g.id });
+  const other = upload(w, "child");
+  const pending = w.start("child", {
+    name: "later.png",
+    type: "image/png",
+    size: png.length,
+    gallery: g.id,
+  });
+  for (const cover of [other, pending.id])
+    expect(() => w.action("child", "gallery", { ...g, cover })).toThrow();
+  expect(() => w.action("parent", "gallery", { ...g, cover: id })).toThrow();
+  w.action("child", "gallery", { ...g, cover: id });
+  expect(w.snapshot("parent").galleries[0].cover).toBe(id);
+  w.action("child", "gallery", { ...g, name: "Renamed", cover: undefined });
+  expect(w.snapshot("child").galleries[0].cover).toBe(id);
+  w.action("child", "mediaGallery", { id, gallery: "" });
+  expect(w.snapshot("child").galleries[0].cover).toBe("");
+  expect(w.media("child", id).complete).toBe(1);
+});
+
+test("personal backgrounds preserve profile details, isolate personas, reset and respect revoked access", () => {
+  const w = setup();
+  const g = w.action("teacher", "gallery", {
+    name: "Shared photos",
+    purpose: "",
+    color: "green",
+    shared: true,
+  }).galleries[0];
+  const id = upload(w, "teacher", { gallery: g.id });
+  const privateId = upload(w, "teacher");
+  expect(() => w.action("adult", "background", { id: privateId })).toThrow();
+  expect(() =>
+    w.action("adult", "background", {
+      id: upload(w, "adult", {}, Buffer.from("text file")),
+    }),
+  ).toThrow();
+  const pending = w.start("adult", {
+    name: "later.png",
+    type: "image/png",
+    size: png.length,
+  });
+  expect(() => w.action("adult", "background", { id: pending.id })).toThrow();
+  w.action("adult", "background", { id });
+  expect(w.snapshot("adult").profile.background).toBe(id);
+  expect(w.snapshot("child").profile.background).toBeFalsy();
+  w.action("adult", "profile", {
+    ...w.snapshot("adult").profile,
+    name: "My name",
+    background: privateId,
+  });
+  expect(new WorkspaceStore(w.campus).snapshot("adult").profile).toMatchObject({
+    name: "My name",
+    background: id,
+  });
+  w.action("teacher", "gallery", { ...g, shared: false });
+  expect(w.snapshot("adult").profile.background).toBe("");
+  expect(() => w.media("adult", id)).toThrow();
+  w.action("adult", "background", { id: "" });
+  expect(w.snapshot("adult").profile).toMatchObject({
+    name: "My name",
+    background: "",
+  });
+});

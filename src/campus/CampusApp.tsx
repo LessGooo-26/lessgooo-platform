@@ -1,3 +1,10 @@
+import { mediaUrl } from "./lib/workspace-api";
+import {
+  HomeworkBoard,
+  HomeworkSummary,
+  HomeworkHistory,
+} from "./HomeworkBoard";
+import { homeworkText } from "./lib/homework";
 import {
   CampusSearch,
   ServiceDesk,
@@ -91,7 +98,6 @@ import { Toaster, toast } from "sonner";
 import {
   BrandLogo,
   HelpTip,
-  HomeworkMap,
   Launchpad,
   WorkspacePanel,
 } from "./WorkspacePanel";
@@ -447,6 +453,10 @@ export default function CampusApp() {
   const { locale } = useLanguage();
   useEffect(() => {
     document.documentElement.lang = locale;
+    document.title =
+      locale === "en"
+        ? "LESSGOOO Campus · Learn by doing"
+        : "LESSGOOO Campus · Apprendre par la pratique";
   }, [locale]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [persona, setPersona] = useState<Persona>(() => {
@@ -546,6 +556,13 @@ export default function CampusApp() {
       if (!r.ok) {
         if (r.status === 409) await reload();
         throw new Error(d.error);
+      }
+      if (action === "submit") {
+        const previousIds = new Set(
+          snapRef.current?.state.submissions.map((s) => s.id),
+        );
+        const saved = d.state.submissions.find((s) => !previousIds.has(s.id));
+        if (saved) setSubmission(saved);
       }
       setSnapshot(d);
       toast.success(tx("Modification enregistrée"));
@@ -682,7 +699,13 @@ export default function CampusApp() {
   const c = snapshot?.state,
     teacher = persona === "teacher",
     identity = personas.find((x) => x.value === persona)!,
-    user = { ...identity, name: profile?.name || identity.name },
+    user = {
+      ...identity,
+      name:
+        !profile?.name || profile.name === identity.name
+          ? tx(identity.name)
+          : profile.name,
+    },
     studentId = user.student || (persona === "parent" ? "maya" : undefined);
   const date = (value: string, short = false) =>
     new Intl.DateTimeFormat(localeCode(), {
@@ -1186,7 +1209,20 @@ export default function CampusApp() {
             )}
           </HelpTip>
         </div>
-        <main id="campus-main" className="content">
+        <main
+          id="campus-main"
+          className={
+            "content" +
+            (profile?.background ? " campus-personal-background" : "")
+          }
+          style={
+            profile?.background
+              ? {
+                  backgroundImage: `linear-gradient(#f5f7fbea, #f5f7fbea), url("${mediaUrl(profile.background, persona, true)}")`,
+                }
+              : undefined
+          }
+        >
           {page === "sessions" && teacher && <LiveClassTools />}
           <div className="page-head">
             <div>
@@ -1274,7 +1310,11 @@ export default function CampusApp() {
                     ) : (
                       <Launchpad c={c} go={go} />
                     )}
-                    <HomeworkMap c={c} openLesson={setLesson} />
+                    <HomeworkSummary
+                      c={c}
+                      openLesson={setLesson}
+                      go={() => go("projects")}
+                    />
                     <div className="stats-grid">
                       {[
                         [
@@ -1420,7 +1460,7 @@ export default function CampusApp() {
                                   <span>
                                     <strong>{tx(title(s.lesson))}</strong>
                                     <small>
-                                      {tx(name(s.student))}
+                                      {name(s.student)}
                                       {tx("· Travail à corriger")}
                                     </small>
                                   </span>
@@ -1748,99 +1788,13 @@ export default function CampusApp() {
                   </>
                 )}
                 {page === "projects" && (
-                  <>
-                    <div className="toolbar">
-                      <Tabs value={filter} onValueChange={setFilter}>
-                        <TabsList>
-                          {[
-                            ["all", "Tous"],
-                            ["pending", "À corriger"],
-                            ["validated", "Validés"],
-                            ["revise", "À retravailler"],
-                          ].map(([v, l]) => (
-                            <TabsTrigger key={v} value={v}>
-                              {tx(l)}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <div className="panel">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{tx("Travail remis")}</TableHead>
-                            {teacher && <TableHead>{tx("Élève")}</TableHead>}
-                            <TableHead>{tx("État")}</TableHead>
-                            <TableHead>{tx("Date")}</TableHead>
-                            <TableHead />
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {c.submissions
-                            .filter(
-                              (s) => filter === "all" || s.status === filter,
-                            )
-                            .map((s) => (
-                              <TableRow key={s.id}>
-                                <TableCell>
-                                  <strong>{tx(title(s.lesson))}</strong>
-                                  {s.file && (
-                                    <small>
-                                      <Paperclip size={12} />
-                                      {tx(s.file.name)}
-                                    </small>
-                                  )}
-                                </TableCell>
-                                {teacher && (
-                                  <TableCell>{tx(name(s.student))}</TableCell>
-                                )}
-                                <TableCell>
-                                  <Badge
-                                    tone={
-                                      s.status === "validated"
-                                        ? "green"
-                                        : s.status === "revise"
-                                          ? "red"
-                                          : "orange"
-                                    }
-                                  >
-                                    {tx(
-                                      s.status === "pending"
-                                        ? "À corriger"
-                                        : statusText[s.status],
-                                    )}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {tx(date(s.created, true))}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    onClick={() => setSubmission(s)}
-                                  >
-                                    {tx(
-                                      teacher ? "Examiner" : "Voir le retour",
-                                    )}
-                                    <ChevronRight size={16} />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                      {!c.submissions.filter(
-                        (s) => filter === "all" || s.status === filter,
-                      ).length && (
-                        <Empty title={tx("Aucun travail dans cette catégorie")}>
-                          {tx(
-                            "Les travaux remis depuis une leçon apparaîtront ici.",
-                          )}
-                        </Empty>
-                      )}
-                    </div>
-                  </>
+                  <HomeworkBoard
+                    key={persona}
+                    c={c}
+                    persona={persona}
+                    openLesson={setLesson}
+                    openSubmission={setSubmission}
+                  />
                 )}
                 {page === "students" && teacher && (
                   <div className="panel">
@@ -2537,7 +2491,11 @@ export default function CampusApp() {
               <DialogTitle>{tx(lesson.title)}</DialogTitle>
             </DialogHeader>
             <Suspense fallback={<p role="status">{tx("Chargement…")}</p>}>
-              <LessonReader key={lesson.id} lesson={lesson}>
+              <LessonReader
+                key={lesson.id}
+                lesson={lesson}
+                initialTab={page === "projects" ? "lab" : "understand"}
+              >
                 {["adult", "child"].includes(persona) ? (
                   <Button
                     onClick={() => {
@@ -2724,11 +2682,18 @@ export default function CampusApp() {
                 <Badge tone={s.status === "validated" ? "green" : "orange"}>
                   {tx(
                     s.status === "pending"
-                      ? "À corriger"
+                      ? teacher
+                        ? "À corriger"
+                        : "En attente de retour"
                       : statusText[s.status],
                   )}
                 </Badge>
-                <div className="submission-text">{s.text}</div>
+                <h3 className="homework-detail-label">
+                  {locale === "en" ? "Submitted work" : "Travail remis"}
+                </h3>
+                <div className="submission-text">
+                  {homeworkText(s, "text", locale)}
+                </div>
                 {s.url && (
                   <a href={s.url} target="_blank" rel="noreferrer">
                     {tx("Ouvrir le projet")}
@@ -2738,7 +2703,7 @@ export default function CampusApp() {
                 {s.file && (
                   <Button variant="outline" onClick={() => getFile(s)}>
                     <Download size={16} />
-                    {tx(s.file.name)}
+                    {s.file.name}
                   </Button>
                 )}
                 {["adult", "child"].includes(persona) &&
@@ -2760,14 +2725,42 @@ export default function CampusApp() {
                       />
                     </label>
                   )}
+                {s.status === "pending" && (
+                  <p className="homework-pending-note">
+                    {locale === "en"
+                      ? "This work is saved and waiting for teacher feedback."
+                      : "Ce travail est enregistré et attend le retour du formateur."}
+                  </p>
+                )}
                 {s.feedback && (
                   <div className="answer">
                     <strong>
                       {tx("Retour du formateur · ")}
                       {tx(s.level)}
                     </strong>
-                    <p>{s.feedback}</p>
+                    <p>{homeworkText(s, "feedback", locale)}</p>
                   </div>
+                )}
+                <HomeworkHistory
+                  submissions={c.submissions}
+                  current={s}
+                  openSubmission={setSubmission}
+                />
+                {!teacher && s.status === "revise" && (
+                  <Button
+                    onClick={() => {
+                      const linked = c.lessons.find((l) => l.id === s.lesson);
+                      if (linked) {
+                        setSubmission(null);
+                        setLesson(linked);
+                      }
+                    }}
+                  >
+                    {locale === "en"
+                      ? "Return to the activity"
+                      : "Reprendre l’activité"}
+                    <ArrowRight size={16} />
+                  </Button>
                 )}
                 {teacher && (
                   <Button

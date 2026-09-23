@@ -140,3 +140,22 @@ test("reduced motion uses manual stepping and French content is available", asyn
     vi.unstubAllGlobals();
   }
 });
+
+test("a homework entry opens the attached practice immediately in the selected language", () => {
+  setLanguage("fr");
+  render(
+    <LessonReader lesson={python} initialTab="lab">
+      <button>Remettre mon travail</button>
+    </LessonReader>,
+  );
+  expect(
+    screen.getByRole("button", { name: "Remettre mon travail" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Votre liste de preuves" }),
+  ).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Projet guidé" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});

@@ -25,7 +25,8 @@ import {
   uploadMedia,
   workspaceRequest,
 } from "./lib/workspace-api";
-import { useLanguage } from "./lib/language";
+import { PhotoOptions } from "./PhotoOptions";
+import { useLanguage, localeCode, tx } from "./lib/language";
 import "./personal-space.css";
 
 export type PersonalData = {
@@ -42,8 +43,8 @@ const ownerFor = (p: Persona) =>
   ({ teacher: "teacher", parent: "parent", adult: "alex", child: "maya" })[p];
 const sizeLabel = (n: number) =>
   n < 1024 * 1024
-    ? `${Math.ceil(n / 1024)} KB`
-    : `${(n / 1024 / 1024).toFixed(1)} MB`;
+    ? `${Math.ceil(n / 1024)} ${tx("KB")}`
+    : `${new Intl.NumberFormat(localeCode(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n / 1024 / 1024)} ${tx("MB")}`;
 
 function UploadBox({
   persona,
@@ -229,7 +230,9 @@ export function MediaLibrary({ persona, data, reload }: Props) {
     [filter, setFilter] = useState("all");
   const media = data.media.filter(
     (m) =>
-      m.name.toLowerCase().includes(query.toLowerCase()) &&
+      (m.name + " " + (m.label || ""))
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
       (filter === "all" ||
         (filter === "videos"
           ? m.type.startsWith("video/") || m.preview.startsWith("video/")
@@ -323,11 +326,14 @@ function MediaCard({
             href={mediaUrl(file.id, persona, true)}
             target="_blank"
             rel="noreferrer"
-            aria-label={t("Open photo: ", "Ouvrir la photo : ") + file.name}
+            aria-label={
+              t("Open photo: ", "Ouvrir la photo : ") +
+              (file.label || file.name)
+            }
           >
             <img
               src={mediaUrl(file.id, persona, true)}
-              alt={file.name}
+              alt={file.label || file.name}
               loading="lazy"
             />
           </a>
@@ -336,7 +342,25 @@ function MediaCard({
         )}
       </div>
       <div className="media-card-body">
-        <h3>{file.name}</h3>
+        <h3>{file.label || file.name}</h3>
+        {file.label && <p className="photo-filename">{file.name}</p>}
+        {file.preview.startsWith("image/") && (
+          <p className="photo-date">
+            {file.photoDate
+              ? t("Photo date: ", "Date de la photo : ")
+              : t("Added: ", "Ajoutée le : ")}
+            <time dateTime={file.photoDate || file.created}>
+              {new Intl.DateTimeFormat(localeCode(), {
+                dateStyle: "medium",
+                ...(file.photoDate ? { timeZone: "UTC" } : {}),
+              }).format(
+                new Date(
+                  file.photoDate ? file.photoDate + "T00:00:00Z" : file.created,
+                ),
+              )}
+            </time>
+          </p>
+        )}
         <p>
           {sizeLabel(file.size)} ·{" "}
           {file.shared ? t("Campus", "Campus") : t("Personal", "Personnel")}
@@ -385,6 +409,9 @@ export function Galleries({ persona, data, reload }: Props) {
   const active = data.galleries.find((g) => g.id === selected),
     own = ownerFor(persona),
     photos = data.media.filter((m) => m.preview.startsWith("image/"));
+  const cover = photos.find(
+    (m) => m.id === active?.cover && m.gallery === active?.id,
+  );
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -439,6 +466,36 @@ export function Galleries({ persona, data, reload }: Props) {
           {t("New gallery", "Nouvelle galerie")}
         </Button>
       </div>
+      {data.profile.background && (
+        <div className="background-preference">
+          <span>
+            {t(
+              "Your campus has a personal photo background.",
+              "Votre campus utilise un fond photo personnel.",
+            )}
+          </span>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              try {
+                await post("/api/workspace", persona, {
+                  action: "background",
+                  data: { id: "" },
+                });
+                await reload();
+                window.dispatchEvent(new Event("campus-profile-updated"));
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            {t(
+              "Reset my campus background",
+              "Réinitialiser mon fond de campus",
+            )}
+          </Button>
+        </div>
+      )}
       {editing && (
         <form className="panel profile-form" onSubmit={save}>
           <h2>
@@ -534,7 +591,9 @@ export function Galleries({ persona, data, reload }: Props) {
       {!active && (
         <div className="gallery-grid">
           {data.galleries.map((g) => {
-            const cover = photos.find((m) => m.gallery === g.id);
+            const cover =
+              photos.find((m) => m.id === g.cover && m.gallery === g.id) ||
+              photos.find((m) => m.gallery === g.id);
             return (
               <button
                 className={`gallery-card accent-${g.color}`}
@@ -587,7 +646,16 @@ export function Galleries({ persona, data, reload }: Props) {
       )}
       {active && (
         <>
-          <div className={`gallery-heading accent-${active.color}`}>
+          <div
+            className={`gallery-heading accent-${active.color} ${cover ? "has-photo" : ""}`}
+          >
+            {cover && (
+              <img
+                className="gallery-background"
+                src={mediaUrl(cover.id, persona, true)}
+                alt=""
+              />
+            )}
             <Camera />
             <div>
               <h2>{active.name}</h2>
@@ -612,11 +680,15 @@ export function Galleries({ persona, data, reload }: Props) {
               .filter((m) => m.gallery === active.id)
               .map((file) => (
                 <MediaCard key={file.id} file={file} persona={persona}>
-                  {file.owner === own && (
-                    <Button variant="ghost" onClick={() => void move(file, "")}>
-                      {t("Remove from gallery", "Retirer de la galerie")}
-                    </Button>
-                  )}
+                  <PhotoOptions
+                    file={file}
+                    gallery={active}
+                    persona={persona}
+                    editable={file.owner === own && active.owner === own}
+                    background={data.profile.background}
+                    reload={reload}
+                    remove={() => move(file, "")}
+                  />
                 </MediaCard>
               ))}
           </div>
@@ -870,7 +942,11 @@ export function ProfileButton({
       className="profile-button"
       onClick={onClick}
       aria-label={t("Edit my profile", "Modifier mon profil")}
-      title={profile?.name}
+      title={
+        profile?.name === "DevOps learner" || profile?.name === "Young learner"
+          ? tx(profile.name)
+          : profile?.name
+      }
     >
       {profile?.avatar ? (
         <img src={mediaUrl(profile.avatar, persona, true)} alt="" />

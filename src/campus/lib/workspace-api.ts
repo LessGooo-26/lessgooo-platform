@@ -11,7 +11,7 @@ export async function workspaceRequest<T>(
   });
   if (!r.headers.get("content-type")?.includes("application/json"))
     throw new Error(
-      "Ouvrez le campus depuis le serveur local pour enregistrer.",
+      tx("Ouvrez le campus depuis le serveur local pour enregistrer."),
     );
   const d = await r.json();
   if (!r.ok) throw new Error(tx(d.error || "Action impossible."));

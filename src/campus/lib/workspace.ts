@@ -59,13 +59,30 @@ export type Media = {
   shared: number;
   gallery: string;
   preview: string;
+  label?: string;
+  photoDate?: string;
 };
+export const photoDetailsSchema = z.object({
+  id: z.string().min(1).max(100),
+  label: z.string().trim().max(160),
+  photoDate: z
+    .string()
+    .refine(
+      (value) =>
+        value === "" ||
+        (/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+          Number.isFinite(Date.parse(value)) &&
+          new Date(value).toISOString().slice(0, 10) === value),
+      "Choose a valid photo date.",
+    ),
+});
 export const gallerySchema = z.object({
   id: z.string().max(100).optional(),
   name: z.string().trim().min(1).max(100),
   purpose: z.string().trim().max(500),
   color: z.enum(["blue", "green", "yellow", "orange", "red", "navy"]),
   shared: z.boolean().default(false),
+  cover: z.string().max(100).optional(),
 });
 export type Gallery = z.infer<typeof gallerySchema> & {
   id: string;
@@ -81,6 +98,7 @@ export const profileSchema = z.object({
 export type Profile = z.infer<typeof profileSchema> & {
   id: string;
   owner: string;
+  background?: string;
 };
 export type SyncJob = {
   id: string;

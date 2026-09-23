@@ -35,8 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog";
-import type { Campus, Lesson, Persona } from "./lib/model";
-import { progress } from "./lib/model";
+import type { Campus, Persona } from "./lib/model";
 import { interviewQuestions } from "./lib/curriculum";
 import { practiceProjects, resourceChecked, videos } from "./lib/resources";
 import {
@@ -186,99 +185,6 @@ export function Launchpad({
     </section>
   );
 }
-export function HomeworkMap({
-  c,
-  openLesson,
-}: {
-  c: Campus;
-  openLesson: (l: Lesson) => void;
-}) {
-  const [student, setStudent] = useState(c.students[0]?.id || "");
-  const target = c.students.find((s) => s.id === student) || c.students[0];
-  if (!target) return null;
-  const lessons = c.lessons.filter((l) => l.track === target.track);
-  const stateFor = (id: string) =>
-    c.submissions.find((s) => s.student === target.id && s.lesson === id)
-      ?.status || "missing";
-  const counts = lessons.reduce(
-    (out, l) => {
-      out[stateFor(l.id)]++;
-      return out;
-    },
-    { validated: 0, pending: 0, revise: 0, missing: 0 },
-  );
-  const labels = {
-    validated: "Validés",
-    pending: "À corriger",
-    revise: "À reprendre",
-    missing: "Non remis",
-  };
-  return (
-    <section className="panel homework-map">
-      <div className="workspace-heading">
-        <div>
-          <span className="eyebrow">{tx("CHAQUE ÉTAPE COMPTE")}</span>
-          <h2>
-            {tx("La progression par les devoirs")}
-            {tx(" ")}
-            <HelpTip>
-              {tx(
-                "Une leçon augmente la progression après validation du formateur. Un devoir non remis n’est pas déclaré en retard sans échéance.",
-              )}
-            </HelpTip>
-          </h2>
-        </div>
-        <label>
-          {tx("Élève")}
-          <select
-            value={target.id}
-            onChange={(e) => setStudent(e.target.value)}
-          >
-            {c.students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="homework-summary">
-        {Object.entries(counts).map(([s, n]) => (
-          <span className={`homework-count ${s}`} key={s}>
-            <b>{tx(n)}</b>
-            {tx(labels[s as keyof typeof labels])}
-          </span>
-        ))}
-        <span className="homework-percent">
-          {tx(progress(c, target.id).percent)}
-          {tx("%")}
-          <small>{tx("du parcours validé")}</small>
-        </span>
-      </div>
-      <div className="homework-tiles">
-        {lessons.map((l, i) => (
-          <button
-            key={l.id}
-            className={`homework-tile ${stateFor(l.id)}`}
-            aria-label={tx(
-              `${tx(l.title)} — ${tx(labels[stateFor(l.id) as keyof typeof labels])}`,
-            )}
-            title={tx(
-              `${tx(l.title)} — ${tx(labels[stateFor(l.id) as keyof typeof labels])}`,
-            )}
-            onClick={() => openLesson(l)}
-          >
-            {tx(String(i + 1).padStart(2, "0"))}
-          </button>
-        ))}
-      </div>
-      <p className="footnote">
-        {tx("Cliquez sur une étape pour ouvrir sa leçon et son exercice.")}
-      </p>
-    </section>
-  );
-}
-
 export function WorkspacePanel({
   page,
   persona,

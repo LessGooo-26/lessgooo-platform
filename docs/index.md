@@ -12,6 +12,8 @@ Studio and service intake requested on 2026-09-17: [scope](product/campus-studio
 
 Guided lessons and professional service briefs requested on 2026-09-23: [scope](product/learning-experience.md) and [validation](quality/learning-experience-validation.md).
 
+Photo labels, backgrounds and a simpler bilingual homework experience requested on 2026-09-23: [scope](product/gallery-homework-experience.md) and [validation](quality/gallery-homework-validation.md).
+
 ## Purpose
 
 Codex and human developers should use these documents to determine what

@@ -25,14 +25,16 @@ import "./lesson-reader.css";
 export default function LessonReader({
   lesson,
   children,
+  initialTab = "understand",
 }: {
   lesson: Lesson;
   children?: ReactNode;
+  initialTab?: "understand" | "lab";
 }) {
   const { t, locale } = useLanguage();
   const text = (copy: Copy) => copy[locale === "en" ? 0 : 1];
   const guide = guideFor(lesson.id);
-  const [tab, setTab] = useState("understand");
+  const [tab, setTab] = useState<string>(initialTab);
   const environments = guide ? lessonEnvironments(guide) : [];
   const [environmentId, setEnvironmentId] = useState(
     environments[0]?.id || "local",
@@ -232,7 +234,7 @@ export default function LessonReader({
           <section className="lesson-proof">
             <h3>
               <ClipboardList size={20} />
-              {t("Your submission checklist", "Votre checklist de rendu")}
+              {t("Your submission checklist", "Votre liste de preuves")}
             </h3>
             <h4>
               {t("Instructor assignment", "Travail demandé par le formateur")}
@@ -273,7 +275,7 @@ export default function LessonReader({
             <p className="lesson-note">
               {t(
                 "These checks are for your own preparation. Only the instructor’s review validates submitted work.",
-                "Cette checklist prépare votre rendu. Seule la revue du formateur valide le travail soumis.",
+                "Cette liste prépare votre rendu. Seule la revue du formateur valide le travail soumis.",
               )}
             </p>
             {children}

@@ -10,6 +10,7 @@ import {
   noteSchema,
   gallerySchema,
   profileSchema,
+  photoDetailsSchema,
   type Gallery,
   type Profile,
   type CareerInterest,
@@ -48,6 +49,14 @@ export class WorkspaceStore {
       .prepare("PRAGMA table_info(media)")
       .all()
       .map((c) => c.name);
+    if (!columns.includes("label"))
+      this.db.exec(
+        "ALTER TABLE media ADD COLUMN label TEXT NOT NULL DEFAULT ''",
+      );
+    if (!columns.includes("photoDate"))
+      this.db.exec(
+        "ALTER TABLE media ADD COLUMN photoDate TEXT NOT NULL DEFAULT ''",
+      );
     if (!columns.includes("gallery"))
       this.db.exec(
         "ALTER TABLE media ADD COLUMN gallery TEXT NOT NULL DEFAULT ''",
@@ -105,6 +114,17 @@ export class WorkspaceStore {
   }
   snapshot(p: Persona) {
     const owner = this.owner(p);
+    const media = this.mediaList(p);
+    const savedProfile = this.items<Profile>("profile", owner)[0];
+    const profile = savedProfile && {
+      ...savedProfile,
+      background: media.some(
+        (m) =>
+          m.id === savedProfile.background && m.preview.startsWith("image/"),
+      )
+        ? savedProfile.background
+        : "",
+    };
     return {
       notes: this.items<Note>("note", owner),
       interests:
@@ -117,9 +137,9 @@ export class WorkspaceStore {
         p === "adult" || p === "teacher"
           ? this.items<JobApplication>("application", owner)
           : [],
-      media: this.mediaList(p),
+      media,
       galleries: this.galleries(p),
-      profile: this.items<Profile>("profile", owner)[0] || {
+      profile: profile || {
         id: `profile:${owner}`,
         owner,
         name: personas.find((x) => x.value === p)!.name,
@@ -146,9 +166,42 @@ export class WorkspaceStore {
             "Choose your own JPG, PNG, GIF or WebP photo, up to 8 MB.",
           );
       }
-      this.put("profile", owner, { ...d, id: `profile:${owner}`, owner });
+      this.put("profile", owner, {
+        ...this.items<Profile>("profile", owner)[0],
+        ...d,
+        id: `profile:${owner}`,
+        owner,
+      });
+    } else if (action === "background") {
+      const d = parse(z.object({ id: z.string().max(100) }), input);
+      if (d.id && !this.media(p, d.id).preview.startsWith("image/"))
+        throw new DomainError("Choose a completed photo.");
+      this.put("profile", owner, {
+        ...this.snapshot(p).profile,
+        background: d.id,
+      });
+    } else if (action === "photoDetails") {
+      const d = parse(photoDetailsSchema, input);
+      const file = this.media(p, d.id, true);
+      if (!file.complete || !file.preview.startsWith("image/"))
+        throw new DomainError("Choose a completed photo.");
+      this.db
+        .prepare("UPDATE media SET label=?,photoDate=? WHERE id=?")
+        .run(d.label, d.photoDate, d.id);
     } else if (action === "gallery") {
       const d = parse(gallerySchema, input);
+      const oldGallery = d.id ? this.ownGallery(p, d.id) : undefined;
+      const cover = d.cover ?? oldGallery?.cover ?? "";
+      if (cover) {
+        const photo = this.media(p, cover, true);
+        if (
+          !d.id ||
+          photo.gallery !== d.id ||
+          !photo.complete ||
+          !photo.preview.startsWith("image/")
+        )
+          throw new DomainError("Choose a photo from this gallery.");
+      }
       if (
         d.id &&
         !this.items<Gallery>("gallery", owner).some((g) => g.id === d.id)
@@ -159,6 +212,7 @@ export class WorkspaceStore {
         id: d.id || crypto.randomUUID(),
         owner,
         shared: p === "teacher" && d.shared,
+        cover,
       };
       this.db.exec("BEGIN IMMEDIATE");
       try {
@@ -186,9 +240,21 @@ export class WorkspaceStore {
           "Only completed photos can be moved to a gallery.",
         );
       const gallery = d.gallery ? this.ownGallery(p, d.gallery) : undefined;
-      this.db
-        .prepare("UPDATE media SET gallery=?,shared=? WHERE id=?")
-        .run(d.gallery, gallery?.shared ? 1 : 0, d.id);
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        this.db
+          .prepare("UPDATE media SET gallery=?,shared=? WHERE id=?")
+          .run(d.gallery, gallery?.shared ? 1 : 0, d.id);
+        if (file.gallery && file.gallery !== d.gallery) {
+          const old = this.ownGallery(p, file.gallery);
+          if (old.cover === file.id)
+            this.put("gallery", owner, { ...old, cover: "" });
+        }
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
     } else if (action === "note") {
       const d = parse(noteSchema, input);
       const old = d.id

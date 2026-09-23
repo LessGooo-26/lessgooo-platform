@@ -105,9 +105,19 @@ export const personas: {
   student?: string;
 }[] = [
   { value: "teacher", label: "Formateur", name: "Carles" },
-  { value: "adult", label: "Élève DevOps", name: "DevOps learner", student: "alex" },
+  {
+    value: "adult",
+    label: "Élève DevOps",
+    name: "DevOps learner",
+    student: "alex",
+  },
   { value: "parent", label: "Parent", name: "Parent" },
-  { value: "child", label: "Élève Kids", name: "Young learner", student: "maya" },
+  {
+    value: "child",
+    label: "Élève Kids",
+    name: "Young learner",
+    student: "maya",
+  },
 ];
 export const trackLabel = (t: string) =>
   t === "kids" ? "LessGooo Kids" : "DevOps & Cloud";
@@ -120,10 +130,18 @@ export const stageLabels: Record<string, string> = {
 };
 export function progress(c: Campus, student: string) {
   const s = c.students.find((x) => x.id === student);
-  const total = c.lessons.filter((l) => l.track === s?.track).length;
+  const lessons = new Set(
+    c.lessons.filter((l) => l.track === s?.track).map((l) => l.id),
+  );
+  const total = lessons.size;
   const done = new Set(
     c.submissions
-      .filter((x) => x.student === student && x.status === "validated")
+      .filter(
+        (x) =>
+          x.student === student &&
+          x.status === "validated" &&
+          lessons.has(x.lesson),
+      )
       .map((x) => x.lesson),
   ).size;
   return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
