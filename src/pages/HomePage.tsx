@@ -8,6 +8,7 @@ import { SectionHeading } from "../components/ui/SectionHeading";
 import { useLocale } from "../i18n/LocaleContext";
 import { publicRoutes } from "../routes/public-routes";
 import { LearningPreview } from "../components/content/LearningPreview";
+import { SchoolSpotlight } from "../components/content/SchoolSpotlight";
 
 export function HomePage() {
   const { content } = useLocale();
@@ -25,6 +26,9 @@ export function HomePage() {
         }}
         secondaryAction={{ label: home.learnAbout, to: publicRoutes.about }}
       />
+      <Section>
+        <SchoolSpotlight />
+      </Section>
       <Section labelledBy="approach-title">
         <SectionHeading
           id="approach-title"

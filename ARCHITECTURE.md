@@ -1,6 +1,6 @@
 # LESSGOOO application architecture
 
-Last reviewed: 2026-09-18. See [README](README.md#architecture-and-service-count)
+Last reviewed: 2026-09-24. See [README](README.md#architecture-and-service-count)
 for diagrams, dependencies and connection details.
 
 | Surface | Runtime | Data | Deployment |
@@ -27,3 +27,39 @@ Permanent backend/authentication selection remains
 [SECURITY-001](docs/UNKNOWN.md). Containerization does not resolve authentication,
 privacy, recovery or availability requirements. Do not scale SQLite to multiple
 writers.
+
+## School-support module
+
+The school module adds no deployable service or new dependency. Its shared
+schema, original revision catalogue, quiz scoring and explainable guidance live
+in `src/school/`. The existing Node process exposes `/api/school/*` through
+`server/school-store.ts`. SQLite adds `school_catalog`, `school_profiles` and
+`school_attempts`; existing media tables store authorised attachments.
+
+```mermaid
+flowchart LR
+  Public[Public school page] -->|Read published catalogue| API[Existing Node HTTP API]
+  Campus[Campus school space] -->|Explicit demo persona| API
+  Editor[Local owner settings simulation] -->|Validated versioned changes| API
+  API --> Rules[Shared schema and quiz rules]
+  Rules --> DB[(Existing SQLite database)]
+  API -->|Voluntary heartbeat, 90-second expiry| Memory[Ephemeral presence map]
+  Campus -->|Existing chunked media API| DB
+  Export[Catalogue export] -->|Validated public snapshot| Pages[Static GitHub Pages build]
+  Public -->|User follows a source link| Sources[Ministries, exam boards and educational resources]
+```
+
+Anonymous catalogue responses and static snapshots omit local media, meeting
+links and unpublished content. Private routes require an explicit validated
+demo persona header; this is still not authentication. Only the owner-settings
+simulation can edit the catalogue. Parent views read the linked fictional child
+and cannot write that child's marks or attempts. A stale catalogue version
+cannot overwrite settings or silently grade a quiz against changed questions.
+
+Presence is in-memory only, deduplicated per demo profile, with no nominal peer
+roster returned to learners. Guidance runs deterministically from self-reported
+marks and interests and has no external AI dependency. Neither indicates real
+attendance, a psychometric result or admission eligibility.
+
+See the [operator guide](docs/product/school-support-guide.md) for limits,
+export/import and the static publication command. ADR-001/003/004 remain in force.

@@ -126,6 +126,7 @@ import {
   type Stage,
 } from "@/lib/model";
 import { LessonLibrary } from "./LessonLibrary";
+const SchoolHub = lazy(() => import("../school/SchoolHub"));
 const CourseCatalog = lazy(() => import("./CourseCatalog"));
 const LessonReader = lazy(() => import("./LessonReader"));
 const navItems = campusTools.map(
@@ -1310,6 +1311,10 @@ export default function CampusApp() {
                         : "Prêt à apprendre quelque chose et à le mettre en pratique ?"
                     : (
                         {
+                          school: t(
+                            "Classes, practice and guidance for learners and families.",
+                            "Classes, exercices et orientation pour les élèves et les familles.",
+                          ),
                           courses:
                             "Comprendre d’abord. Pratiquer ensuite. Expliquer pour maîtriser.",
                           sessions:
@@ -1733,6 +1738,11 @@ export default function CampusApp() {
                       </aside>
                     </div>
                   </>
+                )}
+                {page === "school" && (
+                  <Suspense fallback={<p>{t("Loading…", "Chargement…")}</p>}>
+                    <SchoolHub key={persona} persona={persona} />
+                  </Suspense>
                 )}
                 {page === "courses" && (
                   <Tabs

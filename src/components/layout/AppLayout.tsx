@@ -19,7 +19,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
       : undefined;
     document.title =
       "LESSGOOO · " +
-      (course?.title[locale] ||
+      ((location.pathname === "/school"
+        ? locale === "fr"
+          ? "Soutien scolaire"
+          : "School support"
+        : undefined) ||
+        course?.title[locale] ||
         (routeId ? content.navigation[routeId] : content.notFound.title));
     if (previousPath.current !== location.pathname) {
       previousPath.current = location.pathname;

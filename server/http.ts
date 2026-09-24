@@ -10,6 +10,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { serveMedia } from "./media-stream";
 import { Studio } from "./studio";
+import { SchoolStore } from "./school-store";
 import { transcriptText, transcriptVtt } from "../src/campus/lib/studio";
 
 const maxBody = 6 * 1024 * 1024;
@@ -45,6 +46,7 @@ export function createCampusServer(
   options: { port: number; devPort?: number; staticDir?: string },
 ) {
   const workspace = new WorkspaceStore(store);
+  const school = new SchoolStore(store);
   const studio = new Studio(workspace);
   const integrations = new Integrations(
     workspace,
@@ -115,6 +117,35 @@ export function createCampusServer(
         });
         sync();
         return res.end();
+      }
+      if (url.pathname.startsWith("/api/school/")) {
+        const selected = req.headers["x-campus-persona"];
+        if (url.pathname === "/api/school/catalog" && req.method === "GET") {
+          if (selected) personaFor(req);
+          return json(school.catalog(selected === "teacher", !selected));
+        }
+        if (!selected) throw new DomainError("SCHOOL_FORBIDDEN", 403);
+        const p = personaFor(req);
+        if (req.method === "GET") {
+          if (url.pathname === "/api/school/progress")
+            return json(school.progress(p));
+          if (url.pathname === "/api/school/presence")
+            return json(school.presence(p));
+          if (url.pathname === "/api/school/report")
+            return json(school.report(p));
+        }
+        if (req.method === "POST") {
+          const d = await input(6 * 1024 * 1024);
+          if (url.pathname === "/api/school/catalog")
+            return json(school.save(p, d));
+          if (url.pathname === "/api/school/profile")
+            return json(school.profile(p, d));
+          if (url.pathname === "/api/school/attempt")
+            return json(school.attempt(p, d));
+          if (url.pathname === "/api/school/presence")
+            return json(school.presence(p, d));
+        }
+        throw new DomainError("Méthode refusée.", 405);
       }
       if (url.pathname === "/api/workspace") {
         const p = personaFor(req);

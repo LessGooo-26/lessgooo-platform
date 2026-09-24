@@ -4,7 +4,7 @@ import { publicRoutes } from "../../routes/public-routes";
 import { Container } from "../ui/Container";
 
 export function Footer() {
-  const { content } = useLocale();
+  const { content, locale } = useLocale();
 
   return (
     <footer className="site-footer">
@@ -21,6 +21,9 @@ export function Footer() {
         </div>
         <nav aria-label={content.shell.footerNavigation}>
           <Link to={publicRoutes.programs}>{content.navigation.programs}</Link>
+          <Link to="/school">
+            {locale === "fr" ? "Soutien scolaire" : "School support"}
+          </Link>
           <Link to={publicRoutes.about}>{content.navigation.about}</Link>
           <Link to={publicRoutes.services}>{content.navigation.services}</Link>
           <Link to={publicRoutes.faq}>{content.navigation.faq}</Link>

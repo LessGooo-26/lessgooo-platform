@@ -78,3 +78,7 @@ availability and live merchant approval remain unconfirmed. Enquiries are
 available through the branded public Google Form; no payment or appointment is
 created. Public form submission, a private response spreadsheet and the owner's
 email notification were verified with a clearly marked test response.
+
+## SCHOOL-001 — Programmes, édition et conditions du soutien scolaire
+
+Demande confirmée le 2026-09-23 : voir [school-support.md](programs/school-support.md). Périodicité des montants et répartition détaillée des cours en attente. Les programmes/manuels doivent porter leur source et édition ; aucun inventaire national exhaustif, livre commercial libre ou conformité ministérielle globale n'est confirmé. L'ouverture à des comptes réels reste soumise à SECURITY-001.

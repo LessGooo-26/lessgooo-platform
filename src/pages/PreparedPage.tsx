@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import { SchoolSpotlight } from "../components/content/SchoolSpotlight";
 import { ProgramCard } from "../components/content/ProgramCard";
 import { CourseDirectory } from "../components/content/CourseDirectory";
 import { Section } from "../components/ui/Section";
@@ -42,6 +43,7 @@ export function PreparedPage({
       </Section>
       {(routeId === "programs" || routeId === "services" || areas[routeId]) && (
         <Section tone="subtle">
+          {routeId === "programs" && <SchoolSpotlight />}
           <CourseDirectory
             company={routeId === "services"}
             ids={areas[routeId]}

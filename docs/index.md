@@ -85,3 +85,9 @@ Whole-site review requested on 2026-09-23: [scope and findings](product/site-rev
 - Whole-site validation and feature coverage: [quality/site-review-validation.md](quality/site-review-validation.md).
 
 Campus workspace design inspired by Microsoft/Google patterns: [scope](product/workspace-interface.md) and [validation](quality/workspace-interface-validation.md).
+
+Soutien scolaire au Cameroun demandé le 2026-09-23 : [offre, règles et limites](programs/school-support.md) et [plan de réalisation](plans/active/cameroon-school-support.md).
+
+Utiliser et configurer l'espace scolaire : [guide pas à pas](product/school-support-guide.md).
+
+Contrôles et couverture réelle de l'espace scolaire : [validation](quality/school-support-validation.md).

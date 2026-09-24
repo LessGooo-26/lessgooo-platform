@@ -30,6 +30,17 @@ export type CampusTool = {
 };
 export const campusTools: CampusTool[] = [
   {
+    id: "school",
+    label: "Soutien scolaire",
+    description: {
+      fr: "Classes, exercices, annales et orientation au Cameroun.",
+      en: "Classes, practice, past papers and guidance in Cameroon.",
+    },
+    icon: GraduationCap,
+    group: "learn",
+    tone: "green",
+  },
+  {
     id: "dashboard",
     label: "Vue d’ensemble",
     description: {

@@ -21,3 +21,6 @@ If the current price is not confirmed:
 
 Never copy a historical promotional amount into a current offer without
 confirmation.
+## Soutien scolaire — 2026-09-23
+
+Le propriétaire a confirmé de nouveaux tarifs et créneaux pour les cours de répétition. La source unique des conditions et inconnues est [school-support.md](../programs/school-support.md). Ne pas déduire la périodicité des montants avant sa confirmation.

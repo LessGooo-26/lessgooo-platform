@@ -19,6 +19,47 @@ local transcription and service enquiries. The public website remains on GitHub 
 · [Argo CD](#argocd-gitops) · [monitoring](#prometheus-and-grafana)
 · [recovery](#recovery-cleanup-and-troubleshooting) · [student phases](#student-project-in-ten-phases).
 
+## School support in Cameroon
+
+Open **Programs → School support**, or `http://localhost:5173/#/school`.
+The local campus also has **School support** at `campus.html#school`.
+Choose a subsystem, class and subject without changing the interface language.
+
+The initial bilingual catalogue includes **26 general classes, 24 subject
+descriptions, 24 original revision chapters and 48 explained quiz questions**,
+plus fresh arithmetic practice and external curriculum, exam, video and challenge
+collections. This is a configurable starting library, not complete coverage of
+every Cameroonian curriculum, technical stream, past examination or prescribed book.
+
+The teacher demonstration view provides **Manage** forms for fees, offered
+subjects, classes/streams, chapters/quizzes, resources/uploads and weekly sessions.
+Owner-provided fees: **2,000 F CFA registration; 5,000 F CFA for 4e, 3e and 2nde;
+10,000 F CFA for 1re and terminale**. Billing period remains unconfirmed.
+Opening hours: Monday–Friday 16:00–18:00, Saturday 08:00–12:00, Africa/Douala.
+Class-by-subject session allocation has not been invented.
+
+Quiz attempts and self-reported guidance profiles persist in SQLite. Parents
+can read the linked fictional child's progress. Voluntary presence expires after
+90 seconds and is not attendance tracking. Guidance explains interest/mark-based
+suggestions and never makes admissions decisions. All of this uses existing
+local demo personas, not production login accounts.
+
+See the **[French step-by-step guide](docs/product/school-support-guide.md)** for
+editing, file formats, curriculum verification, presence and static publication.
+Export the catalogue in the site, then prepare a reviewed Pages snapshot with:
+
+```powershell
+node --import tsx scripts/publish-school-catalog.mjs "path/to/export.json"
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+The script only writes `src/school/published-catalog.json`, stripping local media
+and meeting links. Commit/push through the existing pipeline after reviewing it.
+GitHub Pages cannot save SQLite changes or serve private learner records.
+
 ## Your campus workspace
 
 Use the search bar from any campus page, or press **Ctrl+K / Cmd+K**, to find a

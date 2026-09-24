@@ -15,6 +15,18 @@ export function previewType(bytes: Uint8Array): string {
     return "image/gif";
   if (
     b.toString("ascii", 0, 4) === "RIFF" &&
+    b.toString("ascii", 8, 12) === "WAVE"
+  )
+    return "audio/wav";
+  if (
+    b.length > 10 &&
+    b.toString("ascii", 0, 3) === "ID3" &&
+    [2, 3, 4].includes(b[3])
+  )
+    return "audio/mpeg";
+  if (b.toString("ascii", 0, 4) === "fLaC") return "audio/flac";
+  if (
+    b.toString("ascii", 0, 4) === "RIFF" &&
     b.toString("ascii", 8, 12) === "WEBP"
   )
     return "image/webp";
